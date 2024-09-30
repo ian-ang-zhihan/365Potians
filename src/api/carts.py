@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
+import sqlalchemy
+from src import database as db
 
 router = APIRouter(
     prefix="/carts",
@@ -81,11 +83,25 @@ def post_visits(visit_id: int, customers: list[Customer]):
 
     return "OK"
 
+cart_id = 0
+carts = {}
 
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
-    return {"cart_id": 1}
+    global cart_id
+    global carts
+
+    cart_id += 1
+    if cart_id not in carts:
+        carts[cart_id] = {}
+
+    for cart in carts.items():
+        print(cart)
+
+    return {
+        "cart_id": cart_id
+        }
 
 
 class CartItem(BaseModel):
@@ -95,6 +111,13 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
+    global carts
+
+    if cart_id in carts:
+        carts[cart_id][item_sku] = cart_item.quantity
+
+    for cart in carts.items():
+        print(cart)
 
     return "OK"
 
@@ -105,5 +128,31 @@ class CartCheckout(BaseModel):
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
+    global carts
+    total_potions_bought = 0
+    for potion in carts[cart_id].values():
+        total_potions_bought += potion
 
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory"))
+        gold_result = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
+
+    # TODO: Need to check if you have enough potions in your inventory
+    current_potion_inventory = result.fetchone().num_green_potions
+    gold = gold_result.fetchone().gold
+
+    if current_potion_inventory < total_potions_bought:
+        return []
+    total_gold_paid = int(cart_checkout.payment)
+
+    new_potion_inventory = current_potion_inventory - total_potions_bought
+    new_gold = gold + total_gold_paid
+
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {new_potion_inventory}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {new_gold}"))
+
+    # TODO: Update your database after they checkout for minus potions & add gold
+    # TODO: you get the item sku & price from your catalog to compute the total
+
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
