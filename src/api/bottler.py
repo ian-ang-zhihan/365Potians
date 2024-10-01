@@ -57,12 +57,15 @@ def get_bottle_plan():
     current_inventory = result.fetchone().num_green_ml
     quantity = current_inventory // 100
 
-    return [
-            {
-                "potion_type": [0, 100, 0, 0],
-                "quantity": quantity,
-            }
-        ]
+    if quantity > 0:
+        return [
+                {
+                    "potion_type": [0, 100, 0, 0],
+                    "quantity": quantity,
+                }
+            ]
+    
+    return []
 
 if __name__ == "__main__":
     print(get_bottle_plan())

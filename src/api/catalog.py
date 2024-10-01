@@ -16,12 +16,17 @@ def get_catalog():
         result = connection.execute(sqlalchemy.text(sql_to_execute))
         # print(result)
 
-    return [
-            {
-                "sku": "GREEN_POTION",
-                "name": "green potion",
-                "quantity": result.fetchone().num_green_potions,
-                "price": 50,
-                "potion_type": [0, 100, 0, 0],
-            }
-        ]
+    quantity = result.fetchone().num_green_potions
+
+    if quantity > 0:
+        return [
+                {
+                    "sku": "GREEN_POTION",
+                    "name": "green potion",
+                    "quantity": quantity,
+                    "price": 50,
+                    "potion_type": [0, 100, 0, 0],
+                }
+            ]
+    
+    return []
