@@ -84,7 +84,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
     return "OK"
 
 cart_id = 0
-carts = {}
+carts = {} # {id : {item_sku : quantity}}
 
 @router.post("/")
 def create_cart(new_cart: Customer):
@@ -128,6 +128,8 @@ class CartCheckout(BaseModel):
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
+    print("cart_checkout.payment = ", cart_checkout.payment)
+    
     global carts
     total_potions_bought = 0
     for potion in carts[cart_id].values():
@@ -143,7 +145,9 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     if current_potion_inventory < total_potions_bought:
         return []
-    total_gold_paid = int(cart_checkout.payment)
+    
+    for i in range(total_potions_bought):
+        total_gold_paid += 50
 
     new_potion_inventory = current_potion_inventory - total_potions_bought
     new_gold = gold + total_gold_paid
