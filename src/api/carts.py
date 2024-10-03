@@ -145,18 +145,17 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     if current_potion_inventory < total_potions_bought:
         return []
-    
-    for i in range(total_potions_bought):
-        total_gold_paid += 50
+    # total_gold_paid = int(cart_checkout.payment)
 
     new_potion_inventory = current_potion_inventory - total_potions_bought
-    new_gold = gold + total_gold_paid
+    gold += (50 * total_potions_bought)
+    # new_gold = gold + total_gold_paid
 
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {new_potion_inventory}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {new_gold}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
 
     # TODO: Update your database after they checkout for minus potions & add gold
     # TODO: you get the item sku & price from your catalog to compute the total
 
-    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": gold}
