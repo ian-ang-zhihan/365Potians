@@ -149,7 +149,8 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     # total_gold_paid = int(cart_checkout.payment)
 
     new_potion_inventory = current_potion_inventory - total_potions_bought
-    gold += (50 * total_potions_bought)
+    total_gold_paid = (50 * total_potions_bought)
+    gold += total_gold_paid
     # new_gold = gold + total_gold_paid
 
     with db.engine.begin() as connection:
@@ -159,4 +160,4 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     # TODO: Update your database after they checkout for minus potions & add gold
     # TODO: you get the item sku & price from your catalog to compute the total
 
-    return {"total_potions_bought": total_potions_bought, "total_gold_paid": gold}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
