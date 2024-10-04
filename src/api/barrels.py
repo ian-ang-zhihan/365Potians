@@ -100,7 +100,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     
     green_potion_inventory = result.fetchone().num_green_potions
     gold_inventory = gold_result.fetchone().gold
-    if (green_potion_inventory < 10) and (gold_inventory > 100):
+    if (green_potion_inventory < 10) and (gold_inventory >= 100):
         return [
             {
                 "sku": "SMALL_GREEN_BARREL",
