@@ -16,22 +16,50 @@ def get_catalog():
     - check API Spec to ensure you're returning the right thing
     """
 
-    sql_to_execute = "SELECT num_green_potions FROM global_inventory"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql_to_execute))
-        # print(result)
+        result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_red_potions, num_blue_potions FROM global_inventory")).mappings()
+        print("Get Catalog Query Result = ", result)
 
-    quantity = result.fetchone().num_green_potions
+    catalog_inventory = result.fetchone()
+    print("catalog_inventory = ", catalog_inventory)
 
-    if quantity > 0:
-        return [
+    catalog = []
+
+    num_green_potions = catalog_inventory["num_green_potions"]
+    num_red_potions = catalog_inventory["num_red_potions"]
+    num_blue_potions = catalog_inventory["num_blue_potions"]
+
+    if num_green_potions > 0:
+        catalog.append(
                 {
                     "sku": "GREEN_POTION",
                     "name": "green potion",
-                    "quantity": quantity,
+                    "quantity": num_green_potions,
                     "price": 50,
                     "potion_type": [0, 100, 0, 0],
                 }
-            ]
+            )
+        
+    if num_red_potions > 0:
+        catalog.append(
+                {
+                    "sku": "RED_POTION",
+                    "name": "red potion",
+                    "quantity": num_red_potions,
+                    "price": 50,
+                    "potion_type": [100, 0, 0, 0],
+                }
+            )
+
+    if num_blue_potions > 0:
+        catalog.append(
+                {
+                    "sku": "BLUE_POTION",
+                    "name": "blue potion",
+                    "quantity": num_blue_potions,
+                    "price": 60,
+                    "potion_type": [0, 0, 100, 0],
+                }
+        )
     
-    return []
+    return catalog
