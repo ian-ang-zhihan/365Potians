@@ -18,6 +18,15 @@ class PotionInventory(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
     """ """
+    """ 
+    - loop through the potions_delivered
+    - Updates:
+        - total potion
+            - get current potions in database
+            - add potions from potions delivered
+            - update database with new number of potions
+    - check API Spec to ensure you're returning the right thing
+    """
     print(f"potions delivered: {potions_delivered} order_id: {order_id}")
 
     sql_to_execute = f"SELECT num_green_potions FROM global_inventory"
@@ -48,6 +57,12 @@ def get_bottle_plan():
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
     # Initial logic: bottle all barrels into green potions.
+
+    """
+    - get your current inventory of potions available for sale
+    - if you go below a certain number of potions and if you have enough ml, make more potions
+    - check API Spec to ensure you're returning the right thing
+    """
 
     sql_to_execute = "SELECT num_green_ml FROM global_inventory"
     with db.engine.begin() as connection:

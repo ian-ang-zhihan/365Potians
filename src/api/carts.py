@@ -83,6 +83,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
 
     return "OK"
 
+# TODO: convert this to a table in the database
 cart_id = 0
 carts = {} # {id : {item_sku : quantity}}
 

@@ -10,6 +10,11 @@ def get_catalog():
     """
     Each unique item combination must have only a single price.
     """
+    """
+    - Grab info from database
+    - If you have stock in your database, return what you have
+    - check API Spec to ensure you're returning the right thing
+    """
 
     sql_to_execute = "SELECT num_green_potions FROM global_inventory"
     with db.engine.begin() as connection:
