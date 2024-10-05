@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 class PotionInventory(BaseModel):
-    potion_type: list[int]
+    potion_type: list[int] # 0 - 100 for each element
     quantity: int
 
 @router.post("/deliver/{order_id}")
@@ -25,24 +25,53 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
             - get current potions in database
             - add potions from potions delivered
             - update database with new number of potions
+        - total ml
+            - get current ml in database
+            - minus ml based on potions delivered
+            - update database with new ml of potions
     - check API Spec to ensure you're returning the right thing
     """
     print(f"potions delivered: {potions_delivered} order_id: {order_id}")
 
-    sql_to_execute = f"SELECT num_green_potions FROM global_inventory"
     with db.engine.begin() as connection:
-        total_potions = connection.execute(sqlalchemy.text(sql_to_execute))
-        total_ml = connection.execute(sqlalchemy.text(f"SELECT num_green_ml FROM global_inventory"))
+        result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_green_ml, num_red_potions, num_red_ml, num_blue_potions, num_blue_ml FROM global_inventory")).mappings()
 
-    potion_inventory = total_potions.fetchone().num_green_potions
-    ml = total_ml.fetchone().num_green_ml
+    inventory = result.fetchone()
+
+    cur_green_potions = inventory["num_green_potions"]
+    cur_red_potions = inventory["num_red_potions"]
+    cur_blue_potions = inventory["num_blue_potions"]
+
+    cur_green_ml = inventory["num_green_ml"]
+    cur_red_ml = inventory["num_red_ml"]
+    cur_blue_ml = inventory["num_blue_ml"]
+
     for potion in potions_delivered:
-        potion_inventory += potion.quantity
-        ml -= (100 * potion.quantity)
+        # Green
+        if potion.potion_type == [0, 100, 0, 0]:
+            cur_green_potions += potion.quantity
+            cur_green_ml -= (potion.quantity * 100)
+        # Red
+        if potion.potion_type == [100, 0, 0, 0]:
+            cur_red_potions += potion.quantity
+            cur_red_ml -= (potion.quantity * 100)
+        # Blue
+        if potion.potion_type == [0, 0, 100, 0]:
+            cur_blue_potions += potion.quantity
+            cur_blue_ml -= (potion.quantity * 100)
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {potion_inventory}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {ml}"))
+        # Green
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
+
+        # Red
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {cur_red_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
+
+        # Blue
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = {cur_blue_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
 
     return "OK"
 
@@ -64,23 +93,48 @@ def get_bottle_plan():
     - check API Spec to ensure you're returning the right thing
     """
 
-    sql_to_execute = "SELECT num_green_ml FROM global_inventory"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql_to_execute))
+        result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml FROM global_inventory")).mappings()
         # print(result)
 
-    current_inventory = result.fetchone().num_green_ml
-    quantity = current_inventory // 100
+    inventory = result.fetchone()
+    cur_green_ml = inventory["num_green_ml"]
+    cur_red_ml = inventory["num_red_ml"]
+    cur_blue_ml = inventory["num_blue_ml"]
 
-    if quantity > 0:
-        return [
+    bottle_plan = []
+
+    # Green
+    green_quantity_to_bottle = cur_green_ml // 100
+    if green_quantity_to_bottle > 0:
+        bottle_plan.append(
                 {
                     "potion_type": [0, 100, 0, 0],
-                    "quantity": quantity,
+                    "quantity": green_quantity_to_bottle,
                 }
-            ]
+        )
+
+    # Red
+    red_quantity_to_bottle = cur_red_ml // 100
+    if red_quantity_to_bottle > 0:
+        bottle_plan.append(
+                {
+                    "potion_type": [100, 0, 0, 0],
+                    "quantity": red_quantity_to_bottle,
+                }
+        )
+
+    # Blue
+    blue_quantity_to_bottle = cur_blue_ml // 100
+    if blue_quantity_to_bottle > 0:
+        bottle_plan.append(
+                {
+                    "potion_type": [0, 0, 100, 0],
+                    "quantity": blue_quantity_to_bottle,
+                }
+        )
     
-    return []
+    return bottle_plan
 
 if __name__ == "__main__":
     print(get_bottle_plan())
