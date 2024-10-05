@@ -20,7 +20,23 @@ class Barrel(BaseModel):
     quantity: int
 
 """
-[Barrel(sku='MEDIUM_RED_BARREL', ml_per_barrel=2500, potion_type=[1, 0, 0, 0], price=250, quantity=10), Barrel(sku='SMALL_RED_BARREL', ml_per_barrel=500, potion_type=[1, 0, 0, 0], price=100, quantity=10), Barrel(sku='MEDIUM_GREEN_BARREL', ml_per_barrel=2500, potion_type=[0, 1, 0, 0], price=250, quantity=10), Barrel(sku='SMALL_GREEN_BARREL', ml_per_barrel=500, potion_type=[0, 1, 0, 0], price=100, quantity=10), Barrel(sku='MEDIUM_BLUE_BARREL', ml_per_barrel=2500, potion_type=[0, 0, 1, 0], price=300, quantity=10), Barrel(sku='SMALL_BLUE_BARREL', ml_per_barrel=500, potion_type=[0, 0, 1, 0], price=120, quantity=10), Barrel(sku='MINI_RED_BARREL', ml_per_barrel=200, potion_type=[1, 0, 0, 0], price=60, quantity=1), Barrel(sku='MINI_GREEN_BARREL', ml_per_barrel=200, potion_type=[0, 1, 0, 0], price=60, quantity=1), Barrel(sku='MINI_BLUE_BARREL', ml_per_barrel=200, potion_type=[0, 0, 1, 0], price=60, quantity=1), Barrel(sku='LARGE_DARK_BARREL', ml_per_barrel=10000, potion_type=[0, 0, 0, 1], price=750, quantity=10), Barrel(sku='LARGE_BLUE_BARREL', ml_per_barrel=10000, potion_type=[0, 0, 1, 0], price=600, quantity=30), Barrel(sku='LARGE_GREEN_BARREL', ml_per_barrel=10000, potion_type=[0, 1, 0, 0], price=400, quantity=30), Barrel(sku='LARGE_RED_BARREL', ml_per_barrel=10000, potion_type=[1, 0, 0, 0], price=500, quantity=30)]
+[
+Barrel(sku='MINI_RED_BARREL', ml_per_barrel=200, potion_type=[1, 0, 0, 0], price=60, quantity=1), 
+Barrel(sku='SMALL_RED_BARREL', ml_per_barrel=500, potion_type=[1, 0, 0, 0], price=100, quantity=10),
+Barrel(sku='MEDIUM_RED_BARREL', ml_per_barrel=2500, potion_type=[1, 0, 0, 0], price=250, quantity=10),  
+Barrel(sku='LARGE_RED_BARREL', ml_per_barrel=10000, potion_type=[1, 0, 0, 0], price=500, quantity=30)]
+
+Barrel(sku='MINI_GREEN_BARREL', ml_per_barrel=200, potion_type=[0, 1, 0, 0], price=60, quantity=1), 
+Barrel(sku='SMALL_GREEN_BARREL', ml_per_barrel=500, potion_type=[0, 1, 0, 0], price=100, quantity=10), 
+Barrel(sku='MEDIUM_GREEN_BARREL', ml_per_barrel=2500, potion_type=[0, 1, 0, 0], price=250, quantity=10), 
+Barrel(sku='LARGE_GREEN_BARREL', ml_per_barrel=10000, potion_type=[0, 1, 0, 0], price=400, quantity=30), 
+
+Barrel(sku='MINI_BLUE_BARREL', ml_per_barrel=200, potion_type=[0, 0, 1, 0], price=60, quantity=1), 
+Barrel(sku='SMALL_BLUE_BARREL', ml_per_barrel=500, potion_type=[0, 0, 1, 0], price=120, quantity=10), 
+Barrel(sku='MEDIUM_BLUE_BARREL', ml_per_barrel=2500, potion_type=[0, 0, 1, 0], price=300, quantity=10), 
+Barrel(sku='LARGE_BLUE_BARREL', ml_per_barrel=10000, potion_type=[0, 0, 1, 0], price=600, quantity=30), 
+
+Barrel(sku='LARGE_DARK_BARREL', ml_per_barrel=10000, potion_type=[0, 0, 0, 1], price=750, quantity=10), 
 """
 # { item_sku: string : [ml_per_barrel: int, potion_type: list, price: int, quantity: int]}
 # barrels = {
@@ -42,7 +58,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     - Updates:
         - total ml
             - get current ml in database
-            - add ml from barrels delivered
+            - add ml from barrels delivered (need to multiply num of barrels with ml_per_barrel)
             - update database with new ml
         - gold
             - get current gold in database
@@ -53,22 +69,39 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
     print(f"barrels delivered: {barrels_delivered} order_id: {order_id}")
 
-    sql_to_execute = f"SELECT num_green_ml FROM global_inventory"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(sql_to_execute))
-        cost = connection.execute(sqlalchemy.text(f"SELECT gold FROM global_inventory"))
+        result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
+
+    inventory = result.fetchone()
+    
+    cur_green_ml = inventory["num_green_ml"]
+    cur_red_ml = inventory["num_red_ml"]
+    cur_blue_ml = inventory["num_blue_ml"]
+    cur_gold = inventory["gold"]
 
 
-    total_ml = result.fetchone().num_green_ml
-    total_cost = cost.fetchone().gold
     for barrel in barrels_delivered:
-        total_ml += barrel.ml_per_barrel
-        total_cost -= barrel.price
+        # Green
+        if barrel.potion_type == [0, 1, 0, 0]:
+            cur_green_ml += (barrel.ml_per_barrel * barrel.quantity)
+            cur_gold -= barrel.price
 
-    sql_to_execute = f"UPDATE global_inventory SET num_green_ml = {total_ml}"
+        # Red
+        if barrel.potion_type == [1, 0, 0, 0]:
+            cur_red_ml += (barrel.ml_per_barrel * barrel.quantity)
+            cur_gold -= barrel.price
+
+        # Blue
+        if barrel.potion_type == [0, 0, 1, 0]:
+            cur_blue_ml += (barrel.ml_per_barrel * barrel.quantity)
+            cur_gold -= barrel.price
+        
+
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(sql_to_execute))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {total_cost}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {cur_gold}"))
 
     return "OK"
 
@@ -83,6 +116,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     - Logic
         - For your RGBD ml:
             - Find the lowest (minimum) color supply -> choose to buy that color
+                - What if the value is the same? Which color to buy then?
+                
             - Check if that color is being sold
             - Check if you have enough money to buy barrel
     - Parse through wholesale_catalog and see if that color is being sold
@@ -93,20 +128,69 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print(wholesale_catalog)
 
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory"))
-        gold_result = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
+        result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
+        # gold_result = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
         # print("Result: ", type(result.fetchone()))
         # print("Result: ", type(result.fetchone().num_green_potions))
     
-    green_potion_inventory = result.fetchone().num_green_potions
-    gold_inventory = gold_result.fetchone().gold
-    if (green_potion_inventory < 10) and (gold_inventory >= 100):
-        return [
-            {
-                "sku": "SMALL_GREEN_BARREL",
-                "quantity": 1,
-            }
-        ]
+    inventory = result.fetchone()
+    green_ml_inventory = (inventory["num_green_ml"], "GREEN")
+    red_ml_inventory = (inventory["num_red_ml"], "RED")
+    blue_ml_inventory = (inventory["num_blue_ml"], "BLUE")
+    gold_inventory = inventory["gold"]
+
+    min_available_ml = min(green_ml_inventory[0], red_ml_inventory[0], blue_ml_inventory[0])
+    for l, c in [green_ml_inventory, red_ml_inventory, blue_ml_inventory]:
+        if min_available_ml == l:
+            min_available_color = c
+
+    barrel_to_purchase = f"SMALL_{min_available_color}_BARREL"
+    is_for_sale = False
+    for barrel in wholesale_catalog:
+        if barrel_to_purchase == barrel.sku:
+            is_for_sale = True
+
+    if is_for_sale:
+        purchase_plan = []
+
+        if min_available_color == "GREEN":
+            if (green_ml_inventory[0] < 10) and (gold_inventory >= 100):
+                purchase_plan.append(
+                    {
+                        "sku": "SMALL_GREEN_BARREL",
+                        "quantity": 1,
+                    }
+                )
+                gold_inventory -= 100
+        # TODO: need to update gold_inventory once you append to the purchase plan since technically your gold would "go down"
+        # i.e. you need to ensure that you have enough gold to buy whatever it is you're looking to buy
     
-    return []
+        if min_available_color == "RED":
+            if (red_ml_inventory[0] < 10) and (gold_inventory >= 100):
+                purchase_plan.append(
+                    {
+                        "sku": "SMALL_RED_BARREL",
+                        "quantity": 1,
+                    }
+                )
+                gold_inventory -= 100
+
+
+        # TODO: need to update gold_inventory once you append to the purchase plan since technically your gold would "go down"
+        # i.e. you need to ensure that you have enough gold to buy whatever it is you're looking to buy
+
+        if min_available_color == "BLUE":
+            if (blue_ml_inventory[0] < 10) and (gold_inventory >= 120):
+                purchase_plan.append(
+                    {
+                        "sku": "SMALL_BLUE_BARREL",
+                        "quantity": 1,
+                    }
+                )
+                gold_inventory -= 120
+
+        # TODO: need to update gold_inventory once you append to the purchase plan since technically your gold would "go down"
+        # i.e. you need to ensure that you have enough gold to buy whatever it is you're looking to buy
+    
+    return purchase_plan
 
