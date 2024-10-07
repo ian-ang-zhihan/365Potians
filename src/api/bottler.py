@@ -62,16 +62,16 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 
     with db.engine.begin() as connection:
         # Green
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}, 
-                                                                         num_green_ml = {cur_green_ml}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
 
         # Red
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {cur_red_potions},
-                                                                         num_red_ml = {cur_red_ml}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {cur_red_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
 
         # Blue
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = {cur_blue_potions},
-                                                                         num_blue_ml = {cur_blue_ml}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = {cur_blue_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
 
     return "OK"
 

@@ -173,10 +173,10 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     new_gold = cur_gold + revenue
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}, 
-                                                                         num_red_potions = {cur_red_potions}, 
-                                                                         num_blue_potions = {cur_blue_potions}, 
-                                                                         gold = {new_gold}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {cur_red_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = {cur_blue_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {new_gold}"))
 
     # TODO: Update your database after they checkout for minus potions & add gold
     # TODO: you get the item sku & price from your catalog to compute the total
