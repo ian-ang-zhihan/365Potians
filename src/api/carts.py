@@ -98,7 +98,9 @@ def create_cart(new_cart: Customer):
         carts[cart_id] = {}
 
     for cart in carts.items():
-        print(cart)
+        print("Customer = ", new_cart)
+        print("created")
+        print("Cart = ", cart)
 
     return {
         "cart_id": cart_id
@@ -113,6 +115,8 @@ class CartItem(BaseModel):
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
     global carts
+
+    print("cart_item = ", item_sku, cart_item)
 
     if cart_id in carts:
         carts[cart_id][item_sku] = cart_item.quantity
@@ -132,32 +136,49 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     print("cart_checkout.payment = ", cart_checkout.payment)
     
     global carts
+
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_red_potions, num_blue_potions, gold FROM global_inventory")).mappings()
+
+    inventory = result.fetchone()
+
+    cur_green_potions = inventory["num_green_potions"]
+    cur_red_potions = inventory["num_red_potions"]
+    cur_blue_potions = inventory["num_blue_potions"]
+    cur_gold = inventory["gold"]
+
     total_potions_bought = 0
-    for potion in carts[cart_id].values():
-        total_potions_bought += potion
+    revenue = 0
+    for potion_sku, quantity in carts[cart_id].items():
+        # total_potions_bought += potion
+        if "GREEN" in potion_sku:
+            if cur_green_potions >= quantity:
+                revenue += (quantity * 50)
+                total_potions_bought += quantity
+
+                cur_green_potions -= quantity
+
+        if "RED" in potion_sku:
+            if cur_red_potions >= quantity:
+                revenue += (quantity * 50)
+                total_potions_bought += quantity
+                cur_red_potions -= quantity
+
+        if "BLUE" in potion_sku:
+            if cur_blue_potions >= quantity:
+                revenue += (quantity * 60)
+                total_potions_bought += quantity
+                cur_blue_potions -= quantity
+
+    new_gold = cur_gold + revenue
 
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory"))
-        gold_result = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
-
-    # TODO: Need to check if you have enough potions in your inventory
-    current_potion_inventory = result.fetchone().num_green_potions
-    gold = gold_result.fetchone().gold
-
-    if current_potion_inventory < total_potions_bought:
-        return []
-    # total_gold_paid = int(cart_checkout.payment)
-
-    new_potion_inventory = current_potion_inventory - total_potions_bought
-    total_gold_paid = (50 * total_potions_bought)
-    gold += total_gold_paid
-    # new_gold = gold + total_gold_paid
-
-    with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {new_potion_inventory}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}, 
+                                                                         num_red_potions = {cur_red_potions}, 
+                                                                         num_blue_potions = {cur_blue_potions}, 
+                                                                         gold = {new_gold}"))
 
     # TODO: Update your database after they checkout for minus potions & add gold
     # TODO: you get the item sku & price from your catalog to compute the total
 
-    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_gold_paid}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": revenue}
