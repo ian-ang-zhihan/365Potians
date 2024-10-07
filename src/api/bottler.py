@@ -98,6 +98,7 @@ def get_bottle_plan():
         # print(result)
 
     inventory = result.fetchone()
+    print("get_bottle_plan_inventory_call = ", inventory)
     cur_green_ml = inventory["num_green_ml"]
     cur_red_ml = inventory["num_red_ml"]
     cur_blue_ml = inventory["num_blue_ml"]
@@ -106,6 +107,7 @@ def get_bottle_plan():
 
     # Green
     green_quantity_to_bottle = cur_green_ml // 100
+    print("green_quantity_to_bottle = ", green_quantity_to_bottle)
     if green_quantity_to_bottle > 0:
         bottle_plan.append(
                 {
@@ -116,6 +118,7 @@ def get_bottle_plan():
 
     # Red
     red_quantity_to_bottle = cur_red_ml // 100
+    print("red_quantity_to_bottle = ", red_quantity_to_bottle)
     if red_quantity_to_bottle > 0:
         bottle_plan.append(
                 {
@@ -126,6 +129,7 @@ def get_bottle_plan():
 
     # Blue
     blue_quantity_to_bottle = cur_blue_ml // 100
+    print("blue_quantity_to_bottle = ", blue_quantity_to_bottle)
     if blue_quantity_to_bottle > 0:
         bottle_plan.append(
                 {
@@ -134,6 +138,7 @@ def get_bottle_plan():
                 }
         )
     
+    print("bottle_plan = ", bottle_plan)
     return bottle_plan
 
 if __name__ == "__main__":
