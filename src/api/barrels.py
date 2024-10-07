@@ -98,10 +98,10 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
         
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {cur_gold}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml},
+                                                                         num_red_ml = {cur_red_ml},
+                                                                         num_blue_ml = {cur_blue_ml},
+                                                                         gold = {cur_gold}"))
 
     return "OK"
 
@@ -175,10 +175,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 )
                 gold_inventory -= 100
 
-
-        # TODO: need to update gold_inventory once you append to the purchase plan since technically your gold would "go down"
-        # i.e. you need to ensure that you have enough gold to buy whatever it is you're looking to buy
-
         if min_available_color == "BLUE":
             if (blue_ml_inventory[0] < 10) and (gold_inventory >= 120):
                 purchase_plan.append(
@@ -188,9 +184,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     }
                 )
                 gold_inventory -= 120
-
-        # TODO: need to update gold_inventory once you append to the purchase plan since technically your gold would "go down"
-        # i.e. you need to ensure that you have enough gold to buy whatever it is you're looking to buy
     
     return purchase_plan
 
