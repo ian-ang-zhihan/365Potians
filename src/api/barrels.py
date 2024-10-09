@@ -169,7 +169,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     gold_inventory = inventory["gold"]
 
     min_available_potion = min(green_potion_inventory[0], red_potion_inventory[0], blue_potion_inventory[0])
-    for p, c in [green_potion_inventory, red_potion_inventory, blue_potion_inventory]:
+    for p, c in [red_potion_inventory, blue_potion_inventory, green_potion_inventory]:
         if min_available_potion == p:
             min_available_color = c
 
