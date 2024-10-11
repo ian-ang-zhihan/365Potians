@@ -81,11 +81,22 @@ def post_visits(visit_id: int, customers: list[Customer]):
     """
     print(customers)
 
+    insert_parameters = []
+    for customer in customers:
+        insert_parameters.append({"customer_name" : customer.customer_name,
+                                  "character_class" : customer.character_class,
+                                  "level" : customer.level})
+    
+    sql_to_execute = "INSERT INTO customer_visits (customer_name, character_class, level) VALUES (:customer_name, :character_class, :level)"
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text(sql_to_execute), insert_parameters)
+
     return "OK"
 
 # TODO: convert this to a table in the database
 cart_id = 0
 carts = {} # {id : {item_sku : quantity}}
+
 
 @router.post("/")
 def create_cart(new_cart: Customer):
