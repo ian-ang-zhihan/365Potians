@@ -22,17 +22,17 @@ class Barrel(BaseModel):
 """
 [
 Barrel(sku='MINI_RED_BARREL', ml_per_barrel=200, potion_type=[1, 0, 0, 0], price=60, quantity=1), 
-Barrel(sku='SMALL_RED_BARREL', ml_per_barrel=500, potion_type=[1, 0, 0, 0], price=100, quantity=10),
+Barrel(sku='SMALL_RED_BARREL', ml_per_barrel=500, potion_type=[1, 0, 0, 0], price=100, quantity=1),
 Barrel(sku='MEDIUM_RED_BARREL', ml_per_barrel=2500, potion_type=[1, 0, 0, 0], price=250, quantity=10),  
 Barrel(sku='LARGE_RED_BARREL', ml_per_barrel=10000, potion_type=[1, 0, 0, 0], price=500, quantity=30)]
 
 Barrel(sku='MINI_GREEN_BARREL', ml_per_barrel=200, potion_type=[0, 1, 0, 0], price=60, quantity=1), 
-Barrel(sku='SMALL_GREEN_BARREL', ml_per_barrel=500, potion_type=[0, 1, 0, 0], price=100, quantity=10), 
+Barrel(sku='SMALL_GREEN_BARREL', ml_per_barrel=500, potion_type=[0, 1, 0, 0], price=100, quantity=1), 
 Barrel(sku='MEDIUM_GREEN_BARREL', ml_per_barrel=2500, potion_type=[0, 1, 0, 0], price=250, quantity=10), 
 Barrel(sku='LARGE_GREEN_BARREL', ml_per_barrel=10000, potion_type=[0, 1, 0, 0], price=400, quantity=30), 
 
 Barrel(sku='MINI_BLUE_BARREL', ml_per_barrel=200, potion_type=[0, 0, 1, 0], price=60, quantity=1), 
-Barrel(sku='SMALL_BLUE_BARREL', ml_per_barrel=500, potion_type=[0, 0, 1, 0], price=120, quantity=10), 
+Barrel(sku='SMALL_BLUE_BARREL', ml_per_barrel=500, potion_type=[0, 0, 1, 0], price=120, quantity=1), 
 Barrel(sku='MEDIUM_BLUE_BARREL', ml_per_barrel=2500, potion_type=[0, 0, 1, 0], price=300, quantity=10), 
 Barrel(sku='LARGE_BLUE_BARREL', ml_per_barrel=10000, potion_type=[0, 0, 1, 0], price=600, quantity=30), 
 
@@ -64,8 +64,17 @@ Barrel(sku='LARGE_DARK_BARREL', ml_per_barrel=10000, potion_type=[0, 0, 0, 1], p
     "potion_type": [
       0, 0, 1, 0
     ],
+    "price": 600,
+    "quantity": 30
+  },
+  {
+    "sku": "LARGE_BLUE_BARREL",
+    "ml_per_barrel": 10000,
+    "potion_type": [
+      0, 0, 1, 0
+    ],
     "price": 120,
-    "quantity": 1
+    "quantity": 30
   }
 ]
 """
@@ -157,6 +166,27 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """
 
     print(wholesale_catalog)
+
+    insert_parameters = []
+    for barrel in wholesale_catalog:
+        insert_parameters.append({
+            "sku" : barrel.sku,
+            "ml_per_barrel" : barrel.ml_per_barrel,
+            "potion_type": barrel.potion_type,
+            "price" : barrel.price
+        })
+
+    with db.engine.begin() as connection:
+        connection.execute(sqlalchemy.text("INSERT INTO barrels_available_for_purchase (sku, ml_per_barrel, potion_type, price) SELECT :sku, :ml_per_barrel, :potion_type, :price WHERE NOT EXISTS (SELECT 1 FROM barrels_available_for_purchase WHERE sku = :sku)"), insert_parameters)
+
+    """
+    INSERT INTO barrels_available_for_purchase (sku, ml_per_barrel, potion_type, price)
+    SELECT :sku, :ml_per_barrel, :potion_type, :price
+    WHERE NOT EXISTS (
+        SELECT 1 FROM barrels_available_for_purchase WHERE sku = :sku
+    )
+
+    """
 
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_red_potions, num_blue_potions, gold FROM global_inventory")).mappings()
