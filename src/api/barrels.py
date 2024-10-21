@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
 from src import database as db
+import heapq
 
 router = APIRouter(
     prefix="/barrels",
@@ -117,45 +118,73 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     print(f"barrels delivered: {barrels_delivered} order_id: {order_id}")
 
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
+        liquid_inventory = connection.execute(sqlalchemy.text(f"SELECT color, potion_type, num_ml FROM liquid_inventory")).mappings().fetchall()
+        print("liquid_inventory = ", liquid_inventory)
+        # result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
+        # inventory = result.fetchone()
+
+        cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
+        print("cha_ching = ", cha_ching)
+        cur_gold = cha_ching["gold"]
 
     """
-    SELECT color, num_ml
+    SELECT color, potion_type, num_ml
     FROM liquid_inventory
 
     SELECT gold
     FROM cha_ching
     """
-    inventory = result.fetchone()
     
-    cur_green_ml = inventory["num_green_ml"]
-    cur_red_ml = inventory["num_red_ml"]
-    cur_blue_ml = inventory["num_blue_ml"]
-    cur_gold = inventory["gold"]
+    # cur_green_ml = inventory["num_green_ml"]
+    # cur_red_ml = inventory["num_red_ml"]
+    # cur_blue_ml = inventory["num_blue_ml"]
+    # cur_gold = inventory["gold"]
 
+    liquid_update_parameters = []
+    cost = 0
 
     for barrel in barrels_delivered:
-        # Green
-        if barrel.potion_type == [0, 1, 0, 0]:
-            cur_green_ml += (barrel.ml_per_barrel * barrel.quantity)
-            cur_gold -= barrel.price
+        liquid_update_parameters.append({
+            "new_ml" : barrel.ml_per_barrel * barrel.quantity,
+            "potion_type" : barrel.potion_type
+        })
 
-        # Red
-        if barrel.potion_type == [1, 0, 0, 0]:
-            cur_red_ml += (barrel.ml_per_barrel * barrel.quantity)
-            cur_gold -= barrel.price
+        cost += barrel.price
 
-        # Blue
-        if barrel.potion_type == [0, 0, 1, 0]:
-            cur_blue_ml += (barrel.ml_per_barrel * barrel.quantity)
-            cur_gold -= barrel.price
+    # for barrel in barrels_delivered:
+    #     # Green
+    #     if barrel.potion_type == [0, 1, 0, 0]:
+    #         cur_green_ml += (barrel.ml_per_barrel * barrel.quantity)
+    #         cur_gold -= barrel.price
+
+    #     # Red
+    #     if barrel.potion_type == [1, 0, 0, 0]:
+    #         cur_red_ml += (barrel.ml_per_barrel * barrel.quantity)
+    #         cur_gold -= barrel.price
+
+    #     # Blue
+    #     if barrel.potion_type == [0, 0, 1, 0]:
+    #         cur_blue_ml += (barrel.ml_per_barrel * barrel.quantity)
+    #         cur_gold -= barrel.price
         
+    """
+    UPDATE liquid_inventory
+    SET num_ml = num_ml + :new_ml
+    WHERE potion_type = :potion_type
+
+    UPDATE cha_ching
+    SET gold = gold - :cost
+    """
+    print("liquid_update_parameters = ", liquid_update_parameters)
+    print("cost = ", cost)
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {cur_gold}"))
+        connection.execute(sqlalchemy.text("UPDATE liquid_inventory SET num_ml = num_ml + :new_ml WHERE potion_type = :potion_type"), liquid_update_parameters)
+        connection.execute(sqlalchemy.text("UPDATE cha_ching SET gold = gold - :cost"), {"cost" : cost})
+        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
+        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
+        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
+        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {cur_gold}"))
 
     return "OK"
 
@@ -197,6 +226,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
     #--- LOGGING THE TYPES OF BARRELS SOLD ---#
     insert_parameters = []
+    available_for_purchase = {} # key = barrel.sku | value = dictionary of other barrel attributes
     for barrel in wholesale_catalog:
         insert_parameters.append({
             "sku" : barrel.sku,
@@ -205,6 +235,15 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             "price" : barrel.price
         })
 
+        if barrel.sku not in available_for_purchase:
+            available_for_purchase[barrel.sku] = {"ml_per_barrel" : barrel.ml_per_barrel,
+                                                  "potion_type": barrel.potion_type,
+                                                  "price" : barrel.price,
+                                                  "quantity" : barrel.quantity}
+
+    print("insert_parameters = ", insert_parameters)
+    print("available_for_purchase = ", available_for_purchase)
+
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text("INSERT INTO barrels_available_for_purchase (sku, ml_per_barrel, potion_type, price) SELECT :sku, :ml_per_barrel, :potion_type, :price WHERE NOT EXISTS (SELECT 1 FROM barrels_available_for_purchase WHERE sku = :sku)"), insert_parameters)
 
@@ -212,7 +251,12 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
     #--- BARREL BUYING LOGIC ---#
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(f"SELECT potion_sku, quantity FROM catalog WHERE quantity < 10")).mappings()
+        inventory = connection.execute(sqlalchemy.text(f"SELECT potion_sku, quantity FROM catalog WHERE quantity < 10")).mappings().fetchall()
+        print("inventory = ", inventory)
+
+        cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
+        print("cha_ching = ", cha_ching)
+        cur_gold = cha_ching["gold"]
     
     """
     with db.engine.begin() as connection:
@@ -255,35 +299,75 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     gold_inventory = inventory["gold"]
     
     """
-    inventory = result.fetchall()
     red_needed = green_needed = blue_needed = dark_needed = 0 
 
     for potion in inventory:
         if int(potion["potion_sku"][:3]) > 0:
-            red_needed += int(potion["potion_sku"][:3])
+            red_needed += (int(potion["potion_sku"][:3]) * (10 - potion["quantity"]))
         
         if int(potion["potion_sku"][4:7]) > 0:
-            green_needed += int(potion["potion_sku"][4:7])
+            green_needed += (int(potion["potion_sku"][4:7]) * (10 - potion["quantity"]))
 
         if int(potion["potion_sku"][8:11]) > 0:
-            blue_needed += int(potion["potion_sku"][8:11])
+            blue_needed += (int(potion["potion_sku"][8:11]) * (10 - potion["quantity"]))
         
         if int(potion["potion_sku"][12:15]) > 0:
-            dark_needed += int(potion["potion_sku"][12:15])
+            dark_needed += (int(potion["potion_sku"][12:15]) * (10 - potion["quantity"]))
 
     print("red_needed = ", red_needed)
     print("green_needed = ", green_needed)
     print("blue_needed = ", blue_needed)
     print("dark_needed = ", dark_needed)
 
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings()
-        
-        cha_ching = result.fetchone()
-        cur_gold = cha_ching["gold"]
+    # Python heapq does min-heap so negate numbers to essentially turn it into a max heap
+    maxH = [(-red_needed, "RED"), (-green_needed, "GREEN"), (-blue_needed, "BLUE"), (-dark_needed, "DARK")]
+    heapq.heapify(maxH)
+    print("maxH = ", maxH)
 
     purchase_plan = []
 
+    # MIGHT WANT TO CONSIDER POPPING ONLY THE TOP PART OF THE MAX HEAP
+    # THE AMOUNT NEEDED DOESN'T REALLY EVEN MATTER WHEN BUYING THE BARRELS. IT WAS MAINLY FOR FIGURING OUT WHICH ONE TO BUY FIRST SINCE IT'S A PRIORITY QUEUE
+    # RIGHT NOW, IF YOU HAVE THE MONEY AND IT'S AVAILABLE, BUY A LARGE BARREL IF NOT A MEDIUM BARREL IF NOT A SMALL BARREL
+    # THAT SHOULD HELP WITH THE DARK BARREL CASE AS WELL
+
+    # TODO: WHEN BUYING LARGE POTIONS, YOU NEED TO CHECK IF YOU HAVE ENOUGH CAPACITY
+    while maxH:
+        node = heapq.heappop(maxH)
+        # LARGE
+        if (f"LARGE_{node[1]}_BARREL" in available_for_purchase):
+            if (cur_gold >= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]):
+                if available_for_purchase[f"LARGE_{node[1]}_BARREL"]["quantity"] >= 1:
+                    purchase_plan.append({
+                        "sku" : f"LARGE_{node[1]}_BARREL",
+                        "quantity" : 1
+                    })
+                    # TODO: need to multiply price by quantity purchased when it becomes more than 1
+                    cur_gold -= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]
+        # MEDIUM
+        elif (f"MEDIUM_{node[1]}_BARREL" in available_for_purchase):
+            if (cur_gold >= available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["price"]):
+                if available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["quantity"] >= 1:
+                    purchase_plan.append({
+                        "sku" : f"MEDIUM_{node[1]}_BARREL",
+                        "quantity" : 1
+                    })
+                    # TODO: need to multiply price by quantity purchased when it becomes more than 1
+                    cur_gold -= available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["price"]
+        # SMALL
+        elif (f"SMALL_{node[1]}_BARREL" in available_for_purchase):
+            if (cur_gold >= available_for_purchase[f"SMALL_{node[1]}_BARREL"]["price"]):
+                if available_for_purchase[f"SMALL_{node[1]}_BARREL"]["quantity"] >= 1:
+                    purchase_plan.append({
+                        "sku" : f"SMALL_{node[1]}_BARREL",
+                        "quantity" : 1
+                    })
+                    # TODO: need to multiply price by quantity purchased when it becomes more than 1
+                    cur_gold -= available_for_purchase[f"SMALL_{node[1]}_BARREL"]["price"]
+
+    print("purchase_plan = ", purchase_plan)
+
+    #--- ---#
     """
     min_available_potion = min(green_potion_inventory[0], red_potion_inventory[0], blue_potion_inventory[0])
     for p, c in [red_potion_inventory, blue_potion_inventory, green_potion_inventory]:
