@@ -15,12 +15,37 @@ router = APIRouter(
 def get_inventory():
     """ """
 
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+    """
+    SELECT SUM(quantity)
+    FROM catalog
+    JOIN???
+
+    SELECT SUM(num_ml)
+    FROM liquid_inventory
+
+    SELECT gold
+    FROM cha_ching
     
-    inventory = result.fetchone()
-    print(inventory)
-    return {"number_of_potions": inventory.num_green_potions, "ml_in_barrels": inventory.num_green_ml, "gold": inventory.gold}
+
+    """
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM catalog")).mappings()
+        # print("SUM(quantity) result = ", result)
+        potion_inventory = result.fetchone()
+        # print("potion_inventory = ", potion_inventory)
+        # print("potion_inventory[\"sum\"] = ", potion_inventory["sum"])
+
+        result = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings()
+        # print("SUM(num_ml) result = ", result)
+        liquid_inventory = result.fetchone()
+        # print("liquid_inventory = ", liquid_inventory)
+
+        result = connection.execute(sqlalchemy.text("SELECT gold FROM cha_ching")).mappings()
+        # print("gold result = ", result)
+        gold_inventory = result.fetchone()
+        # print("gold_inventory = ", gold_inventory)
+
+    return {"number_of_potions": potion_inventory["sum"], "ml_in_barrels": liquid_inventory["sum"], "gold": gold_inventory["gold"]}
 
 # Gets called once a day
 @router.post("/plan")
@@ -31,8 +56,8 @@ def get_capacity_plan():
     """
 
     return {
-        "potion_capacity": 1,
-        "ml_capacity": 1
+        "potion_capacity": 0,
+        "ml_capacity": 0
         }
 
 class CapacityPurchase(BaseModel):
