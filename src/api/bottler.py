@@ -97,6 +97,22 @@ def get_bottle_plan():
         result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml FROM global_inventory")).mappings()
         # print(result)
 
+    """
+    SELECT color, num_ml
+    FROM liquid_inventory
+
+    SELECT potion_sku, quantity
+    FROM catalog
+    WHERE quantity < 10???
+    
+    1. get the quantity of your potions & num_ml
+    2. for each potion, figure out what makes up the potion and make an x number of that potion
+        a. Need to check if you have enough ml for the colors needed to make up that potion
+        b. if you have enough then bottle x amount of that potion
+            i. potential x's
+                - x = 10 - quantity
+                - x = 12 - quantity??? (or maybe 15???)
+    """
     inventory = result.fetchone()
     print("get_bottle_plan_inventory_call = ", inventory)
     cur_green_ml = inventory["num_green_ml"]
