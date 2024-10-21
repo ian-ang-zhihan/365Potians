@@ -16,15 +16,33 @@ def get_catalog():
     - check API Spec to ensure you're returning the right thing
     """
 
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_red_potions, num_blue_potions FROM global_inventory")).mappings()
-        print("Get Catalog Query Result = ", result)
+    """
+    SELECT potion_sku, potion_name, quantity, potion_price, potion_type 
+    FROM catalog
+    WHERE quantity > 0
 
-    catalog_inventory = result.fetchone()
+    """
+
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT potion_sku, potion_name, quantity, potion_price, potion_type FROM catalog WHERE quantity > 0")).mappings()
+        # result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_red_potions, num_blue_potions FROM global_inventory")).mappings()
+        # print("Get Catalog Query Result = ", result)
+
+    catalog_inventory = result.fetchall()
     print("catalog_inventory = ", catalog_inventory)
 
     catalog = []
 
+    for catalog_item in catalog_inventory:
+        catalog.append({
+            "sku": catalog_item["potion_sku"],
+            "name": catalog_item["potion_name"],
+            "quantity": catalog_item["quantity"],
+            "price": catalog_item["potion_price"],
+            "potion_type": catalog_item["potion_type"],
+        })
+
+    """
     num_green_potions = catalog_inventory["num_green_potions"]
     num_red_potions = catalog_inventory["num_red_potions"]
     num_blue_potions = catalog_inventory["num_blue_potions"]
@@ -61,5 +79,5 @@ def get_catalog():
                     "potion_type": [0, 0, 100, 0],
                 }
         )
-    
+    """
     return catalog
