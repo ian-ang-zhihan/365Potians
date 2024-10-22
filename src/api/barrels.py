@@ -192,6 +192,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
         print("cha_ching = ", cha_ching)
         cur_gold = cha_ching["gold"]
+
+        cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
+
     
     red_needed = green_needed = blue_needed = dark_needed = 0 
 
@@ -225,11 +228,11 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # RIGHT NOW, IF YOU HAVE THE MONEY AND IT'S AVAILABLE, BUY A LARGE BARREL IF NOT A MEDIUM BARREL IF NOT A SMALL BARREL
     # THAT SHOULD HELP WITH THE DARK BARREL CASE AS WELL
 
-    # TODO: WHEN BUYING LARGE POTIONS, YOU NEED TO CHECK IF YOU HAVE ENOUGH CAPACITY
+    # TODO: WHEN BUYING (LARGE) BARRELS, YOU NEED TO CHECK IF YOU HAVE ENOUGH CAPACITY
     while maxH:
         node = heapq.heappop(maxH)
         # LARGE
-        if (f"LARGE_{node[1]}_BARREL" in available_for_purchase):
+        if (f"LARGE_{node[1]}_BARREL" in available_for_purchase and cur_capacity["ml_capacity"] > 1):
             if (cur_gold >= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]):
                 if available_for_purchase[f"LARGE_{node[1]}_BARREL"]["quantity"] >= 1:
                     purchase_plan.append({
