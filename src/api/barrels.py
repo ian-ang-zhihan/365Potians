@@ -117,28 +117,17 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
     print(f"barrels delivered: {barrels_delivered} order_id: {order_id}")
 
-    with db.engine.begin() as connection:
-        liquid_inventory = connection.execute(sqlalchemy.text(f"SELECT color, potion_type, num_ml FROM liquid_inventory")).mappings().fetchall()
-        print("liquid_inventory = ", liquid_inventory)
-        # result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
-        # inventory = result.fetchone()
+    # I DON'T THINK YOU NEED THIS DATABASE REQUEST
+    # with db.engine.begin() as connection:
+    #     liquid_inventory = connection.execute(sqlalchemy.text(f"SELECT color, potion_type, num_ml FROM liquid_inventory")).mappings().fetchall()
+    #     print("liquid_inventory = ", liquid_inventory)
+    #     # result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
+    #     # inventory = result.fetchone()
 
-        cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
-        print("cha_ching = ", cha_ching)
-        cur_gold = cha_ching["gold"]
+    #     cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
+    #     print("cha_ching = ", cha_ching)
+    #     cur_gold = cha_ching["gold"]
 
-    """
-    SELECT color, potion_type, num_ml
-    FROM liquid_inventory
-
-    SELECT gold
-    FROM cha_ching
-    """
-    
-    # cur_green_ml = inventory["num_green_ml"]
-    # cur_red_ml = inventory["num_red_ml"]
-    # cur_blue_ml = inventory["num_blue_ml"]
-    # cur_gold = inventory["gold"]
 
     liquid_update_parameters = []
     cost = 0
@@ -151,40 +140,12 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
         cost += barrel.price
 
-    # for barrel in barrels_delivered:
-    #     # Green
-    #     if barrel.potion_type == [0, 1, 0, 0]:
-    #         cur_green_ml += (barrel.ml_per_barrel * barrel.quantity)
-    #         cur_gold -= barrel.price
-
-    #     # Red
-    #     if barrel.potion_type == [1, 0, 0, 0]:
-    #         cur_red_ml += (barrel.ml_per_barrel * barrel.quantity)
-    #         cur_gold -= barrel.price
-
-    #     # Blue
-    #     if barrel.potion_type == [0, 0, 1, 0]:
-    #         cur_blue_ml += (barrel.ml_per_barrel * barrel.quantity)
-    #         cur_gold -= barrel.price
-        
-    """
-    UPDATE liquid_inventory
-    SET num_ml = num_ml + :new_ml
-    WHERE potion_type = :potion_type
-
-    UPDATE cha_ching
-    SET gold = gold - :cost
-    """
     print("liquid_update_parameters = ", liquid_update_parameters)
     print("cost = ", cost)
 
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text("UPDATE liquid_inventory SET num_ml = num_ml + :new_ml WHERE potion_type = :potion_type"), liquid_update_parameters)
         connection.execute(sqlalchemy.text("UPDATE cha_ching SET gold = gold - :cost"), {"cost" : cost})
-        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
-        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
-        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
-        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {cur_gold}"))
 
     return "OK"
 
@@ -259,13 +220,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         cur_gold = cha_ching["gold"]
     
     """
-    with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_red_potions, num_blue_potions, gold FROM global_inventory")).mappings()
-    
-    SELECT potion_sku, quantity
-    FROM catalog
-    WHERE quantity < 10
-
 
     1. get potions that have quantity < 10
     2. parse through the potion_sku to find out what colors make up that potion
@@ -290,14 +244,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         e. update your cur_gold
         f. update your cur_ml???
             might need to query the database to get this one and have as a temp variable??
-
-    inventory = result.fetchone()
-    green_potion_inventory = (inventory["num_green_potions"], "GREEN")
-    red_potion_inventory = (inventory["num_red_potions"], "RED")
-    blue_potion_inventory = (inventory["num_blue_potions"], "BLUE")
-
-    gold_inventory = inventory["gold"]
-    
     """
     red_needed = green_needed = blue_needed = dark_needed = 0 
 
@@ -368,63 +314,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print("purchase_plan = ", purchase_plan)
 
     #--- ---#
-    """
-    min_available_potion = min(green_potion_inventory[0], red_potion_inventory[0], blue_potion_inventory[0])
-    for p, c in [red_potion_inventory, blue_potion_inventory, green_potion_inventory]:
-        if min_available_potion == p:
-            min_available_color = c
-    """
-
-    """
-    min_available_potion = green_potion_inventory[0]
-    min_available_color = green_potion_inventory[1]
-    for p, c in [red_potion_inventory, blue_potion_inventory]:
-        if p < min_available_potion:
-            min_available_potion = p
-            min_available_color = c
-
-    barrel_to_purchase = f"SMALL_{min_available_color}_BARREL"
-    is_for_sale = False
-    for barrel in wholesale_catalog:
-        if barrel_to_purchase == barrel.sku:
-            is_for_sale = True
-
-    if is_for_sale:
-        purchase_plan = []
-
-        if min_available_color == "GREEN":
-            if (green_potion_inventory[0] < 10) and (gold_inventory >= 100):
-                purchase_plan.append(
-                    {
-                        "sku": "SMALL_GREEN_BARREL",
-                        "quantity": 1,
-                    }
-                )
-                gold_inventory -= 100
-        # TODO: need to update gold_inventory once you append to the purchase plan since technically your gold would "go down"
-        # i.e. you need to ensure that you have enough gold to buy whatever it is you're looking to buy
-    
-        if min_available_color == "RED":
-            if (red_potion_inventory[0] < 10) and (gold_inventory >= 100):
-                purchase_plan.append(
-                    {
-                        "sku": "SMALL_RED_BARREL",
-                        "quantity": 1,
-                    }
-                )
-                gold_inventory -= 100
-
-        if min_available_color == "BLUE":
-            if (blue_potion_inventory[0] < 10) and (gold_inventory >= 120):
-                purchase_plan.append(
-                    {
-                        "sku": "SMALL_BLUE_BARREL",
-                        "quantity": 1,
-                    }
-                )
-                gold_inventory -= 120
-    
-    """
     
     return purchase_plan
 
