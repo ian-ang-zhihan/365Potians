@@ -219,7 +219,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # Python heapq does min-heap so negate numbers to essentially turn it into a max heap
     maxH = [(-red_needed, "RED"), (-green_needed, "GREEN"), (-blue_needed, "BLUE"), (-dark_needed, "DARK")]
     heapq.heapify(maxH)
-    print("maxH = ", maxH)
 
     purchase_plan = []
 
@@ -230,6 +229,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
     # TODO: WHEN BUYING (LARGE) BARRELS, YOU NEED TO CHECK IF YOU HAVE ENOUGH CAPACITY
     while maxH:
+        print("maxH = ", maxH)
         node = heapq.heappop(maxH)
         print("node = ", node)
 
