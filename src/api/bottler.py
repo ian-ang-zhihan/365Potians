@@ -74,63 +74,9 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     ]
 
 
-    """
-    UPDATE catalog
-    SET quantity = catalog.quantity + :potion_quantity
-    WHERE potion_type = :potion_type
-
-    UPDATE liquid_inventory
-    SET num_ml = num_ml - :ml_used
-    WHERE color = :color
-    """
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text("UPDATE catalog SET quantity = catalog.quantity + :potion_quantity WHERE potion_type = :potion_type"), potion_update_parameters)
         connection.execute(sqlalchemy.text("UPDATE liquid_inventory SET num_ml = num_ml - :ml_used WHERE color = :color"), liquid_update_parameters)
-        # result = connection.execute(sqlalchemy.text(f"SELECT num_green_potions, num_green_ml, num_red_potions, num_red_ml, num_blue_potions, num_blue_ml FROM global_inventory")).mappings()
-
-        # inventory = result.fetchone()
-
-        # potion_inventory = connection.execute(sqlalchemy.text("")).mappings().fetchall()
-
-
-    """
-    SELECT potion_type, quantity
-    FROM catalog
-    cur_green_potions = inventory["num_green_potions"]
-    cur_red_potions = inventory["num_red_potions"]
-    cur_blue_potions = inventory["num_blue_potions"]
-
-    cur_green_ml = inventory["num_green_ml"]
-    cur_red_ml = inventory["num_red_ml"]
-    cur_blue_ml = inventory["num_blue_ml"]
-
-    for potion in potions_delivered:
-        # Green
-        if potion.potion_type == [0, 100, 0, 0]:
-            cur_green_potions += potion.quantity
-            cur_green_ml -= (potion.quantity * 100)
-        # Red
-        if potion.potion_type == [100, 0, 0, 0]:
-            cur_red_potions += potion.quantity
-            cur_red_ml -= (potion.quantity * 100)
-        # Blue
-        if potion.potion_type == [0, 0, 100, 0]:
-            cur_blue_potions += potion.quantity
-            cur_blue_ml -= (potion.quantity * 100)
-
-    """
-    # with db.engine.begin() as connection:
-    #     # Green
-    #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_potions = {cur_green_potions}"))
-    #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_green_ml = {cur_green_ml}"))
-
-    #     # Red
-    #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {cur_red_potions}"))
-    #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {cur_red_ml}"))
-
-    #     # Blue
-    #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_potions = {cur_blue_potions}"))
-    #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_blue_ml = {cur_blue_ml}"))
 
     return "OK"
 
@@ -153,10 +99,6 @@ def get_bottle_plan():
     """
 
     with db.engine.begin() as connection:
-        # result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml FROM global_inventory")).mappings()
-        # print(result)
-        # inventory = result.fetchone()
-
         potion_inventory = connection.execute(sqlalchemy.text("SELECT potion_type, quantity FROM catalog WHERE quantity < 10")).mappings().fetchall()
         print("potion_inventory = ", potion_inventory)
 
@@ -180,7 +122,6 @@ def get_bottle_plan():
         if liquid["color"] == "DARK":
             dark_available = liquid["num_ml"]
 
-    # red_quantity_to_bottle = green_quantity_to_bottle = blue_quantity_to_bottle = dark_quantity_to_bottle = 0
     bottle_plan = []
 
     while minH:
@@ -193,7 +134,6 @@ def get_bottle_plan():
         blue_needed = node[1][2]
         dark_needed = node[1][3]
 
-        # while ml is enough, add quantity for that potion type
         while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed):
             quantity_to_bottle += 1
             red_available -= red_needed
@@ -206,62 +146,6 @@ def get_bottle_plan():
                 "potion_type" : node[1],
                 "quantity" : quantity_to_bottle
             })
-
-    """
-    SELECT color, num_ml
-    FROM liquid_inventory
-
-    SELECT potion_type, quantity
-    FROM catalog
-    WHERE quantity < 10
-    
-    1. get the quantity of your potions & num_ml
-    2. for each potion, figure out what makes up the potion and make an x number of that potion
-        a. Need to check if you have enough ml for the colors needed to make up that potion
-        b. if you have enough then bottle x amount of that potion
-            i. potential x's
-                - x = 10 - quantity
-                - x = 12 - quantity??? (or maybe 15???)
-    """
-
-    # print("get_bottle_plan_inventory_call = ", inventory)
-    # cur_green_ml = inventory["num_green_ml"]
-    # cur_red_ml = inventory["num_red_ml"]
-    # cur_blue_ml = inventory["num_blue_ml"]
-
-
-    # Green
-    # green_quantity_to_bottle = cur_green_ml // 100
-    # print("green_quantity_to_bottle = ", green_quantity_to_bottle)
-    # if green_quantity_to_bottle > 0:
-    #     bottle_plan.append(
-    #             {
-    #                 "potion_type": [0, 100, 0, 0],
-    #                 "quantity": green_quantity_to_bottle,
-    #             }
-    #     )
-
-    # Red
-    # red_quantity_to_bottle = cur_red_ml // 100
-    # print("red_quantity_to_bottle = ", red_quantity_to_bottle)
-    # if red_quantity_to_bottle > 0:
-    #     bottle_plan.append(
-    #             {
-    #                 "potion_type": [100, 0, 0, 0],
-    #                 "quantity": red_quantity_to_bottle,
-    #             }
-    #     )
-
-    # Blue
-    # blue_quantity_to_bottle = cur_blue_ml // 100
-    # print("blue_quantity_to_bottle = ", blue_quantity_to_bottle)
-    # if blue_quantity_to_bottle > 0:
-    #     bottle_plan.append(
-    #             {
-    #                 "potion_type": [0, 0, 100, 0],
-    #                 "quantity": blue_quantity_to_bottle,
-    #             }
-    #     )
     
     print("bottle_plan = ", bottle_plan)
 

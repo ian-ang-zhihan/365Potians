@@ -117,18 +117,6 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
     print(f"barrels delivered: {barrels_delivered} order_id: {order_id}")
 
-    # I DON'T THINK YOU NEED THIS DATABASE REQUEST
-    # with db.engine.begin() as connection:
-    #     liquid_inventory = connection.execute(sqlalchemy.text(f"SELECT color, potion_type, num_ml FROM liquid_inventory")).mappings().fetchall()
-    #     print("liquid_inventory = ", liquid_inventory)
-    #     # result = connection.execute(sqlalchemy.text(f"SELECT num_green_ml, num_red_ml, num_blue_ml, gold FROM global_inventory")).mappings()
-    #     # inventory = result.fetchone()
-
-    #     cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
-    #     print("cha_ching = ", cha_ching)
-    #     cur_gold = cha_ching["gold"]
-
-
     liquid_update_parameters = []
     cost = 0
 
@@ -154,20 +142,6 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """ """
     """ 
-    Steps for v2
-    - Parse through wholesale_catalog and add it to a dictionary temporarily? (or can possibly do this later)
-    - Get the results you need from the appropriate tables in your database
-    - Logic
-        - For your RGBD ml:
-            - Find the lowest (minimum) color supply -> choose to buy that color
-                - What if the value is the same? Which color to buy then?
-                
-            - Check if that color is being sold
-            - Check if you have enough money to buy barrel
-    - Parse through wholesale_catalog and see if that color is being sold
-    - Based on the results you get, let Roxanne know what barrels you want to buy
-    - Check API Spec to ensure you're returning the right thing
-
     Steps for v3
     - Parse through wholesale_catalog and add it to a dictionary temporarily? (or can possibly do this later)
     - Get the results you need from the appropriate tables in your database
@@ -202,8 +176,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                                                   "price" : barrel.price,
                                                   "quantity" : barrel.quantity}
 
-    print("insert_parameters = ", insert_parameters)
-    print("available_for_purchase = ", available_for_purchase)
+    # print("insert_parameters = ", insert_parameters)
+    # print("available_for_purchase = ", available_for_purchase)
 
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text("INSERT INTO barrels_available_for_purchase (sku, ml_per_barrel, potion_type, price) SELECT :sku, :ml_per_barrel, :potion_type, :price WHERE NOT EXISTS (SELECT 1 FROM barrels_available_for_purchase WHERE sku = :sku)"), insert_parameters)
@@ -219,32 +193,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         print("cha_ching = ", cha_ching)
         cur_gold = cha_ching["gold"]
     
-    """
-
-    1. get potions that have quantity < 10
-    2. parse through the potion_sku to find out what colors make up that potion
-        a. do we need to multiply by (10 - quantity)???
-    3. add that to variables
-    4. create a max heap to prioritize what barrel to buy
-    5. use a for loop
-        a. pop each node for each heap
-            b. check ml with the offered barrels
-                i. if ml_needed == dark and have enough gold, buy the large dark barrel
-                ii. if ml_needed is <= 500 and have enough gold, buy the small
-                iii. elif ml_needed is <= 2500 and have enough gold, buy the medium 
-
-                OR
-
-                i. if ml_needed == dark and have enough gold, buy the large dark barrel
-                ii. elif have enough gold, buy the medium barrel for that color 
-                iii. else buy the small barrel (but make sure you have enough gold)
-
-            c. check if you have enough gold
-        d. if you satisfy both conditions, append that barrel to the purchase_plan
-        e. update your cur_gold
-        f. update your cur_ml???
-            might need to query the database to get this one and have as a temp variable??
-    """
     red_needed = green_needed = blue_needed = dark_needed = 0 
 
     for potion in inventory:
