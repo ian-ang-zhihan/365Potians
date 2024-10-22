@@ -231,6 +231,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # TODO: WHEN BUYING (LARGE) BARRELS, YOU NEED TO CHECK IF YOU HAVE ENOUGH CAPACITY
     while maxH:
         node = heapq.heappop(maxH)
+        print("node = ", node)
+
         # LARGE
         if (f"LARGE_{node[1]}_BARREL" in available_for_purchase and cur_capacity["ml_capacity"] > 1):
             if (cur_gold >= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]):
