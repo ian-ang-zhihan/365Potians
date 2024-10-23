@@ -232,6 +232,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         print("maxH = ", maxH)
         node = heapq.heappop(maxH)
         print("node = ", node)
+        print("available_for_purchase[f\"SMALL_{node[1]}_BARREL\"][\"quantity\"] = ", available_for_purchase[f"LARGE_{node[1]}_BARREL"]["quantity"])
+        print("available_for_purchase[f\"SMALL_{node[1]}_BARREL\"][\"price\"] = ", available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"])
 
         # LARGE
         if (f"LARGE_{node[1]}_BARREL" in available_for_purchase and cur_capacity["ml_capacity"] > 1):
@@ -244,7 +246,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     # TODO: need to multiply price by quantity purchased when it becomes more than 1
                     cur_gold -= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]
         # MEDIUM
-        elif (f"MEDIUM_{node[1]}_BARREL" in available_for_purchase):
+        if (f"MEDIUM_{node[1]}_BARREL" in available_for_purchase):
             if (cur_gold >= available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["price"]):
                 if available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["quantity"] >= 1:
                     purchase_plan.append({
@@ -254,7 +256,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     # TODO: need to multiply price by quantity purchased when it becomes more than 1
                     cur_gold -= available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["price"]
         # SMALL
-        elif (f"SMALL_{node[1]}_BARREL" in available_for_purchase):
+        if (f"SMALL_{node[1]}_BARREL" in available_for_purchase):
             if (cur_gold >= available_for_purchase[f"SMALL_{node[1]}_BARREL"]["price"]):
                 if available_for_purchase[f"SMALL_{node[1]}_BARREL"]["quantity"] >= 1:
                     purchase_plan.append({
