@@ -229,17 +229,15 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # THAT SHOULD HELP WITH THE DARK BARREL CASE AS WELL
 
     # TODO: WHEN BUYING (LARGE) BARRELS, YOU NEED TO CHECK IF YOU HAVE ENOUGH CAPACITY
-    # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
-    while maxH and cur_liquid_inventory <= (10000 * cur_capacity["ml_capacity"]):
+    max_ml_capacity = 10000 * cur_capacity["ml_capacity"]
+    while maxH and cur_liquid_inventory <= max_ml_capacity:
         print("maxH = ", maxH)
         node = heapq.heappop(maxH)
         print("node = ", node)
-        # print(f"available_for_purchase[f\"SMALL_{node[1]}_BARREL\"][\"quantity\"] = ", available_for_purchase[f"SMALL_{node[1]}_BARREL"]["quantity"])
-        # print(f"available_for_purchase[f\"SMALL_{node[1]}_BARREL\"][\"price\"] = ", available_for_purchase[f"SMALL_{node[1]}_BARREL"]["price"])
 
         # LARGE
         if (f"LARGE_{node[1]}_BARREL" in available_for_purchase):
-            if (cur_gold >= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]):
+            if (cur_gold >= available_for_purchase[f"LARGE_{node[1]}_BARREL"]["price"]) and ((cur_liquid_inventory + available_for_purchase[f"LARGE_{node[1]}_BARREL"]["ml_per_barrel"]) <= max_ml_capacity):
                 if available_for_purchase[f"LARGE_{node[1]}_BARREL"]["quantity"] >= 1:
                     purchase_plan.append({
                         "sku" : f"LARGE_{node[1]}_BARREL",
@@ -250,7 +248,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     cur_liquid_inventory += available_for_purchase[f"LARGE_{node[1]}_BARREL"]["ml_per_barrel"]
         # MEDIUM
         if (f"MEDIUM_{node[1]}_BARREL" in available_for_purchase):
-            if (cur_gold >= available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["price"]):
+            if (cur_gold >= available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["price"]) and ((cur_liquid_inventory + available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["ml_per_barrel"]) <= max_ml_capacity):
                 if available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["quantity"] >= 1:
                     purchase_plan.append({
                         "sku" : f"MEDIUM_{node[1]}_BARREL",
@@ -261,7 +259,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     cur_liquid_inventory += available_for_purchase[f"MEDIUM_{node[1]}_BARREL"]["ml_per_barrel"]
         # SMALL
         if (f"SMALL_{node[1]}_BARREL" in available_for_purchase):
-            if (cur_gold >= available_for_purchase[f"SMALL_{node[1]}_BARREL"]["price"]):
+            if (cur_gold >= available_for_purchase[f"SMALL_{node[1]}_BARREL"]["price"]) and ((cur_liquid_inventory + available_for_purchase[f"SMALL_{node[1]}_BARREL"]["ml_per_barrel"]) <= max_ml_capacity):
                 if available_for_purchase[f"SMALL_{node[1]}_BARREL"]["quantity"] >= 1:
                     purchase_plan.append({
                         "sku" : f"SMALL_{node[1]}_BARREL",
