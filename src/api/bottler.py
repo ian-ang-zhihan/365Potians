@@ -105,9 +105,13 @@ def get_bottle_plan():
         liquid_inventory = connection.execute(sqlalchemy.text("SELECT potion_type, color, num_ml FROM liquid_inventory")).mappings().fetchall()
         print("liquid_inventory = ", liquid_inventory)
 
+        cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
+
     minH = []
+    cur_potion_inventory = 0
     for potion in potion_inventory:
         minH.append((potion["quantity"], potion["potion_type"]))
+        cur_potion_inventory += potion["quantity"]
 
     heapq.heapify(minH)
     print("minH = ", minH)
@@ -134,7 +138,8 @@ def get_bottle_plan():
         blue_needed = node[1][2]
         dark_needed = node[1][3]
 
-        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed):
+        # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
+        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed and quantity_to_bottle <= ((50 * (cur_capacity["potion_capacity"])) - cur_potion_inventory)):
             quantity_to_bottle += 1
             red_available -= red_needed
             green_available -= green_needed
