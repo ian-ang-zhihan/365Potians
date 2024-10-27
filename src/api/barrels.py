@@ -189,7 +189,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         inventory = connection.execute(sqlalchemy.text(f"SELECT potion_sku, quantity FROM catalog WHERE quantity < 10")).mappings().fetchall()
         print("inventory = ", inventory)
 
-        cur_liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory"))
+        cur_liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings().fetchone()
+        print("cur_liquid_inventory = ", cur_liquid_inventory)
+
         cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
         print("cha_ching = ", cha_ching)
         cur_gold = cha_ching["gold"]
@@ -224,7 +226,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     purchase_plan = []
 
     max_ml_capacity = 10000 * cur_capacity["ml_capacity"]
-    while maxH and cur_liquid_inventory <= max_ml_capacity:
+    while maxH and cur_liquid_inventory["sum"] <= max_ml_capacity:
         print("maxH = ", maxH)
         node = heapq.heappop(maxH)
         print("node = ", node)
