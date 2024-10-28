@@ -37,10 +37,10 @@ def get_capacity_plan():
     """
 
     with db.engine.begin() as connection:
-        cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
         potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM catalog")).mappings().fetchone()
         liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings().fetchone()
         gold_inventory = connection.execute(sqlalchemy.text("SELECT gold FROM cha_ching")).mappings().fetchone()
+        cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
 
     potion_capacity_to_add = 0
     ml_capacity_to_add = 0
@@ -66,6 +66,8 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     Start with 1 capacity for 50 potions and 1 capacity for 10000 ml of potion. Each additional 
     capacity unit costs 1000 gold.
     """
+    print("capacity_purchase = ", capacity_purchase, " order_id = ", order_id)
+    
     capacity_upgrade_parameters = [
         {
             "potion_capacity_upgrade" : capacity_purchase.potion_capacity,
