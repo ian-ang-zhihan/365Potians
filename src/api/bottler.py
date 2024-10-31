@@ -158,7 +158,7 @@ def get_bottle_plan():
         print("quantity_to_bottle = ", quantity_to_bottle)
         print("cur_potion_inventory = ", cur_potion_inventory)
 
-        if quantity_to_bottle > 0 and quantity_to_bottle <= max_potion_capacity - cur_potion_inventory:
+        if quantity_to_bottle > 0:
             bottle_plan.append({
                 "potion_type" : node[1],
                 "quantity" : quantity_to_bottle
