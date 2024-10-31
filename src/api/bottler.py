@@ -139,14 +139,15 @@ def get_bottle_plan():
         dark_needed = node[1][3]
 
         # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
-        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed and quantity_to_bottle <= ((50 * (cur_capacity["potion_capacity"])) - cur_potion_inventory)):
-            quantity_to_bottle += 1
-            red_available -= red_needed
-            green_available -= green_needed
-            blue_available -= blue_needed
-            dark_available -= dark_needed
+        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed):
+            if quantity_to_bottle <= ((50 * (cur_capacity["potion_capacity"])) - cur_potion_inventory):
+                quantity_to_bottle += 1
+                red_available -= red_needed
+                green_available -= green_needed
+                blue_available -= blue_needed
+                dark_available -= dark_needed
 
-        if quantity_to_bottle > 0:
+        if quantity_to_bottle > 0 and quantity_to_bottle <= ((50 * (cur_capacity["potion_capacity"])) - cur_potion_inventory):
             bottle_plan.append({
                 "potion_type" : node[1],
                 "quantity" : quantity_to_bottle
