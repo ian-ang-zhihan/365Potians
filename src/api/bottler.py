@@ -113,6 +113,7 @@ def get_bottle_plan():
         minH.append((potion["quantity"], potion["potion_type"]))
         cur_potion_inventory += potion["quantity"]
 
+    print("cur_potion_inventory = ", cur_potion_inventory)
     heapq.heapify(minH)
     print("minH = ", minH)
 
@@ -128,6 +129,8 @@ def get_bottle_plan():
 
     bottle_plan = []
 
+    max_potion_capacity = 50 * cur_capacity["potion_capacity"]
+    print("max_potion_capacity = ", max_potion_capacity)
     while minH:
         node = heapq.heappop(minH)
 
@@ -138,16 +141,24 @@ def get_bottle_plan():
         blue_needed = node[1][2]
         dark_needed = node[1][3]
 
-        # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
-        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed):
-            if quantity_to_bottle <= ((50 * (cur_capacity["potion_capacity"])) - cur_potion_inventory):
-                quantity_to_bottle += 1
-                red_available -= red_needed
-                green_available -= green_needed
-                blue_available -= blue_needed
-                dark_available -= dark_needed
+        print("red_needed = ", red_needed)
+        print("green_needed = ", green_needed)
+        print("blue_needed = ", blue_needed)
+        print("dark_needed = ", dark_needed)
 
-        if quantity_to_bottle > 0 and quantity_to_bottle <= ((50 * (cur_capacity["potion_capacity"])) - cur_potion_inventory):
+        # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
+        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed and quantity_to_bottle <= max_potion_capacity - cur_potion_inventory):
+            quantity_to_bottle += 1
+            cur_potion_inventory += 1
+            red_available -= red_needed
+            green_available -= green_needed
+            blue_available -= blue_needed
+            dark_available -= dark_needed
+        
+        print("quantity_to_bottle = ", quantity_to_bottle)
+        print("cur_potion_inventory = ", cur_potion_inventory)
+
+        if quantity_to_bottle > 0 and quantity_to_bottle <= max_potion_capacity - cur_potion_inventory:
             bottle_plan.append({
                 "potion_type" : node[1],
                 "quantity" : quantity_to_bottle
