@@ -165,6 +165,9 @@ def get_bottle_plan():
             green_available -= green_needed
             blue_available -= blue_needed
             dark_available -= dark_needed
+
+            if quantity_to_bottle == max_potion_capacity // 2:
+                break
         
         print("quantity_to_bottle = ", quantity_to_bottle)
         print("cur_potion_inventory = ", cur_potion_inventory)
