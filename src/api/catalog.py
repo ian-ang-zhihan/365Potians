@@ -36,7 +36,7 @@ def get_catalog():
         catalog.append({
             "sku": catalog_item["potion_sku"],
             "name": catalog_item["potion_name"],
-            "quantity": catalog_item["quantity"],
+            "quantity": catalog_item["potion_quantity"],
             "price": catalog_item["potion_price"],
             "potion_type": catalog_item["potion_type"],
         })
