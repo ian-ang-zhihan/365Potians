@@ -105,6 +105,10 @@ def get_bottle_plan():
         liquid_inventory = connection.execute(sqlalchemy.text("SELECT potion_type, color, num_ml FROM liquid_inventory")).mappings().fetchall()
         print("liquid_inventory = ", liquid_inventory)
 
+        """
+        SELECT SUM(potion_capacity) AS potion_capacity, SUM(ml_capacity) AS ml_capacity
+        FROM storage_capacity
+        """
         cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
 
     minH = []
@@ -147,7 +151,7 @@ def get_bottle_plan():
         print("dark_needed = ", dark_needed)
 
         # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
-        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed and quantity_to_bottle <= max_potion_capacity - cur_potion_inventory):
+        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed and quantity_to_bottle < max_potion_capacity - cur_potion_inventory):
             quantity_to_bottle += 1
             cur_potion_inventory += 1
             red_available -= red_needed
