@@ -136,14 +136,16 @@ def get_bottle_plan():
     max_potion_capacity = 50 * cur_capacity["potion_capacity"]
     print("max_potion_capacity = ", max_potion_capacity)
     while minH:
-        node = heapq.heappop(minH)
+        potion_quantity, potion_type = heapq.heappop(minH)
 
         quantity_to_bottle = 0
 
-        red_needed = node[1][0]
-        green_needed = node[1][1]
-        blue_needed = node[1][2]
-        dark_needed = node[1][3]
+        # red_needed = node[1][0]
+        # green_needed = node[1][1]
+        # blue_needed = node[1][2]
+        # dark_needed = node[1][3]
+
+        red_needed, green_needed, blue_needed, dark_needed = potion_type
 
         print("red_needed = ", red_needed)
         print("green_needed = ", green_needed)
@@ -151,9 +153,14 @@ def get_bottle_plan():
         print("dark_needed = ", dark_needed)
 
         # quantity_to_bottle <= ((50 * (potion_capacity)) - quantity)
-        while (red_available >= red_needed and green_available >= green_needed and blue_available >= blue_needed and dark_available >= dark_needed and quantity_to_bottle < max_potion_capacity - cur_potion_inventory):
+        while (
+            red_available >= red_needed and 
+            green_available >= green_needed and 
+            blue_available >= blue_needed and 
+            dark_available >= dark_needed and 
+            quantity_to_bottle + cur_potion_inventory < max_potion_capacity
+            ):
             quantity_to_bottle += 1
-            cur_potion_inventory += 1
             red_available -= red_needed
             green_available -= green_needed
             blue_available -= blue_needed
@@ -164,9 +171,11 @@ def get_bottle_plan():
 
         if quantity_to_bottle > 0:
             bottle_plan.append({
-                "potion_type" : node[1],
+                "potion_type" : potion_type,
                 "quantity" : quantity_to_bottle
             })
+
+            cur_potion_inventory += quantity_to_bottle
     
     print("bottle_plan = ", bottle_plan)
 
