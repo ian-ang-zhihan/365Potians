@@ -16,13 +16,22 @@ def get_inventory():
     """ """
 
     with db.engine.begin() as connection:
+        """
+        SELECT SUM(potion_change) FROM potion_entries
+        """
         potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM catalog")).mappings().fetchone()
         # print("potion_inventory = ", potion_inventory)
         # print("potion_inventory[\"sum\"] = ", potion_inventory["sum"])
 
+        """
+        SELECT SUM(liquid_change) FROM barrel_entries
+        """
         liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings().fetchone()
         # print("liquid_inventory = ", liquid_inventory)
 
+        """
+        SELECT SUM(cha_change) FROM cha_ching_entries
+        """
         gold_inventory = connection.execute(sqlalchemy.text("SELECT gold FROM cha_ching")).mappings().fetchone()
         # print("gold_inventory = ", gold_inventory)
 
@@ -37,18 +46,24 @@ def get_capacity_plan():
     """
 
     with db.engine.begin() as connection:
-        potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM catalog")).mappings().fetchone()
-        liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings().fetchone()
-        gold_inventory = connection.execute(sqlalchemy.text("SELECT gold FROM cha_ching")).mappings().fetchone()
-        cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
+
+        potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(potion_change) FROM potion_entries")).mappings().fetchone()
+
+        liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(liquid_change) FROM barrel_entries")).mappings().fetchone()
+
+        gold_inventory = connection.execute(sqlalchemy.text("SELECT SUM(cha_change) AS gold FROM cha_ching_entries")).mappings().fetchone()
+
+        cur_capacity = connection.execute(sqlalchemy.text("SELECT SUM(potion_capacity) AS potion_capacity, SUM(ml_capacity) AS ml_capacity FROM capacity_entries")).mappings().fetchone()
 
     potion_capacity_to_add = 0
     ml_capacity_to_add = 0
-    if potion_inventory["sum"] >= (40 * cur_capacity["potion_capacity"]) and gold_inventory["gold"] >= 1000:
+    if potion_inventory["sum"] >= (20 * cur_capacity["potion_capacity"]) and gold_inventory["gold"] >= 1000:
         potion_capacity_to_add += 1
+        gold_inventory["gold"] -= 1000
 
-    if liquid_inventory["sum"] >= (9000 * cur_capacity["ml_capacity"]) and gold_inventory["gold"] >= 1000:
+    if liquid_inventory["sum"] >= (5000 * cur_capacity["ml_capacity"]) and gold_inventory["gold"] >= 1000:
         ml_capacity_to_add += 1
+        gold_inventory["gold"] -= 1000
 
     return {
         "potion_capacity": potion_capacity_to_add,
@@ -70,15 +85,30 @@ def deliver_capacity_plan(capacity_purchase : CapacityPurchase, order_id: int):
     
     capacity_upgrade_parameters = [
         {
+            "transaction_id" : order_id,
+            "transaction_type" : "CAPACITY_UPGRADE",
             "potion_capacity_upgrade" : capacity_purchase.potion_capacity,
             "ml_capacity_upgrade" : capacity_purchase.ml_capacity
         }
     ]
 
-    cost = {"cost" : (capacity_purchase.potion_capacity + capacity_purchase.ml_capacity) * 1000}
+    cost = {
+        "transaction_id" : order_id,
+        "transaction_type" : "CAPACITY_UPGRADE",
+        "cost" : -(capacity_purchase.potion_capacity + capacity_purchase.ml_capacity) * 1000
+    }
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("UPDATE storage_capacity SET potion_capacity = potion_capacity + :potion_capacity_upgrade, ml_capacity = ml_capacity + :ml_capacity_upgrade"), capacity_upgrade_parameters)
-        connection.execute(sqlalchemy.text("UPDATE cha_ching SET gold = gold - :cost"), cost)
+        sql_to_execute = """
+                            INSERT INTO capacity_entries (transaction_id, transaction_type, potion_capacity, ml_capacity) VALUES
+                            (:transaction_id, :transaction_type, :potion_capacity_upgrade, :ml_capacity_upgrade)
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), capacity_upgrade_parameters)
+
+        sql_to_execute = """
+                            INSERT INTO cha_ching_entries (transaction_id, transaction_type, cha_change) VALUES 
+                            (:transaction_id, :transaction_type, :cost)
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), cost)
 
     return "OK"
