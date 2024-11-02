@@ -16,26 +16,18 @@ def get_inventory():
     """ """
 
     with db.engine.begin() as connection:
-        """
-        SELECT SUM(potion_change) FROM potion_entries
-        """
-        potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM catalog")).mappings().fetchone()
+
+        potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(potion_change) FROM potion_entries")).mappings().fetchone()
         # print("potion_inventory = ", potion_inventory)
         # print("potion_inventory[\"sum\"] = ", potion_inventory["sum"])
 
-        """
-        SELECT SUM(liquid_change) FROM barrel_entries
-        """
-        liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings().fetchone()
+        liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(liquid_change) FROM barrel_entries")).mappings().fetchone()
         # print("liquid_inventory = ", liquid_inventory)
 
-        """
-        SELECT SUM(cha_change) FROM cha_ching_entries
-        """
-        gold_inventory = connection.execute(sqlalchemy.text("SELECT gold FROM cha_ching")).mappings().fetchone()
+        gold_inventory = connection.execute(sqlalchemy.text("SELECT SUM(cha_change) FROM cha_ching_entries")).mappings().fetchone()
         # print("gold_inventory = ", gold_inventory)
 
-    return {"number_of_potions": potion_inventory["sum"], "ml_in_barrels": liquid_inventory["sum"], "gold": gold_inventory["gold"]}
+    return {"number_of_potions": potion_inventory["sum"], "ml_in_barrels": liquid_inventory["sum"], "gold": gold_inventory["sum"]}
 
 # Gets called once a day
 @router.post("/plan")
