@@ -122,8 +122,10 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
     for barrel in barrels_delivered:
         liquid_update_parameters.append({
-            "new_ml" : barrel.ml_per_barrel * barrel.quantity,
-            "potion_type" : barrel.potion_type
+            "transaction_id" : order_id,
+            "transaction_type" : "BARREL_PURCHASE",
+            "potion_type" : barrel.potion_type,
+            "liquid_change" : barrel.ml_per_barrel * barrel.quantity
         })
 
         cost += barrel.price
@@ -131,9 +133,20 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     print("liquid_update_parameters = ", liquid_update_parameters)
     print("cost = ", cost)
 
+    cha_ching_update_parameters = {"transaction_id" : order_id, "transaction_type" : "BARREL_PURCHASE", "cost" : -cost}
+
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("UPDATE liquid_inventory SET num_ml = num_ml + :new_ml WHERE potion_type = :potion_type"), liquid_update_parameters)
-        connection.execute(sqlalchemy.text("UPDATE cha_ching SET gold = gold - :cost"), {"cost" : cost})
+        sql_to_execute = """
+                            INSERT INTO barrel_entries (transaction_id, potion_type, liquid_change) VALUES 
+                            (:order_id, :potion_type, :liquid_change)
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), liquid_update_parameters)
+        
+        sql_to_execute = """
+                            INSERT INTO cha_ching_entries (transaction_id, transaction_type, cha_change) VALUES 
+                            (:transaction_id, :transaction_type, :cost)
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), cha_ching_update_parameters)
 
     return "OK"
 
@@ -157,47 +170,63 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     - Check API Spec to ensure you're returning the right thing
     """
 
-    print(wholesale_catalog)
+    print("wholesale_catalog = ", wholesale_catalog)
 
     #--- LOGGING THE TYPES OF BARRELS SOLD ---#
-    insert_parameters = []
     available_for_purchase = {} # key = barrel.sku | value = dictionary of other barrel attributes
+    # insert_parameters = []
     for barrel in wholesale_catalog:
-        insert_parameters.append({
-            "sku" : barrel.sku,
-            "ml_per_barrel" : barrel.ml_per_barrel,
-            "potion_type": barrel.potion_type,
-            "price" : barrel.price
-        })
-
         if barrel.sku not in available_for_purchase:
             available_for_purchase[barrel.sku] = {"ml_per_barrel" : barrel.ml_per_barrel,
                                                   "potion_type": barrel.potion_type,
                                                   "price" : barrel.price,
                                                   "quantity" : barrel.quantity}
+        # insert_parameters.append({
+        #     "sku" : barrel.sku,
+        #     "ml_per_barrel" : barrel.ml_per_barrel,
+        #     "potion_type": barrel.potion_type,
+        #     "price" : barrel.price
+        # })
+
 
     # print("insert_parameters = ", insert_parameters)
     # print("available_for_purchase = ", available_for_purchase)
 
-    with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("INSERT INTO barrels_available_for_purchase (sku, ml_per_barrel, potion_type, price) SELECT :sku, :ml_per_barrel, :potion_type, :price WHERE NOT EXISTS (SELECT 1 FROM barrels_available_for_purchase WHERE sku = :sku)"), insert_parameters)
+    # with db.engine.begin() as connection:
+    #     connection.execute(sqlalchemy.text("INSERT INTO barrels_available_for_purchase (sku, ml_per_barrel, potion_type, price) SELECT :sku, :ml_per_barrel, :potion_type, :price WHERE NOT EXISTS (SELECT 1 FROM barrels_available_for_purchase WHERE sku = :sku)"), insert_parameters)
 
     #--- ---#
 
     #--- BARREL BUYING LOGIC ---#
     with db.engine.begin() as connection:
-        inventory = connection.execute(sqlalchemy.text(f"SELECT potion_sku, quantity FROM catalog WHERE quantity < 10")).mappings().fetchall()
+        sql_to_execute = """
+                            SELECT potion_sku, COALESCE(SUM(potion_entries.potion_change), 0) AS quantity
+                            FROM catalog
+                            JOIN potion_entries ON catalog.potion_type = potion_entries.potion_type
+                            GROUP BY potion_sku
+                            HAVING COALESCE(SUM(potion_entries.potion_change), 0) < 10
+                        """
+        inventory = connection.execute(sqlalchemy.text(sql_to_execute)).mappings().fetchall()
         print("inventory = ", inventory)
 
-        total_liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(num_ml) FROM liquid_inventory")).mappings().fetchone()
+        sql_to_execute = """
+                            SELECT COALESCE(SUM(liquid_change), 0) AS sum FROM barrel_entries
+                         """
+        total_liquid_inventory = connection.execute(sqlalchemy.text(sql_to_execute)).mappings().fetchone()
         print("total_liquid_inventory = ", total_liquid_inventory)
 
-        cha_ching = connection.execute(sqlalchemy.text(f"SELECT gold FROM cha_ching")).mappings().fetchone()
+        sql_to_execute = """
+                            SELECT SUM(cha_change) AS gold FROM cha_ching_entries
+                         """
+        cha_ching = connection.execute(sqlalchemy.text(sql_to_execute)).mappings().fetchone()
         print("cha_ching = ", cha_ching)
         cur_gold = cha_ching["gold"]
 
-        cur_capacity = connection.execute(sqlalchemy.text("SELECT potion_capacity, ml_capacity FROM storage_capacity")).mappings().fetchone()
-
+        sql_to_execute = """
+                            SELECT COALESCE(SUM(potion_capacity), 1) AS potion_capacity, COALESCE(SUM(ml_capacity), 1) AS ml_capacity
+                            FROM capacity_entries
+                         """
+        cur_capacity = connection.execute(sqlalchemy.text(sql_to_execute)).mappings().fetchone()
     
     red_needed = green_needed = blue_needed = dark_needed = 0 
 
