@@ -87,8 +87,22 @@ def post_visits(visit_id: int, customers: list[Customer]):
                                   "character_class" : customer.character_class,
                                   "level" : customer.level})
     
-    sql_to_execute = "INSERT INTO customer_visits (customer_name, character_class, level) VALUES (:customer_name, :character_class, :level)"
+
     with db.engine.begin() as connection:
+        # Log customer visits
+        connection.execute(sqlalchemy.text("INSERT INTO customer_visits (customer_name, character_class, level) VALUES (:customer_name, :character_class, :level)"), insert_parameters)
+
+        # Log customer profiles
+        sql_to_execute = """
+                            INSERT INTO customer_profiles (customer_name, character_class, level) 
+                            SELECT :customer_name, :character_class, :level 
+                            WHERE NOT EXISTS 
+                                (
+                                    SELECT 1 
+                                    FROM customer_profiles 
+                                    WHERE customer_name = :customer_name AND character_class = :character_class AND level = :level
+                                )
+                         """
         connection.execute(sqlalchemy.text(sql_to_execute), insert_parameters)
 
     return "OK"
@@ -108,17 +122,21 @@ def create_cart(new_cart: Customer):
     insert_parameters = []
 
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("INSERT INTO carts DEFAULT VALUES RETURNING cart_id")).mappings()
-        print("result = ", result)
-        cart_id = result.fetchone()["cart_id"]
+        cart_id = connection.execute(sqlalchemy.text("INSERT INTO carts DEFAULT VALUES RETURNING cart_id")).mappings().fetchone()["cart_id"]
+
         print("cart_id = ", cart_id)
         insert_parameters.append({"cart_id" : cart_id,
                                   "customer_name" : new_cart.customer_name,
-                                  "character_class" : new_cart.character_class})
+                                  "character_class" : new_cart.character_class,
+                                  "level" : new_cart.level})
         print("insert_parameter = ", insert_parameters)
-        connection.execute(sqlalchemy.text("INSERT INTO customer_purchases (cart_id, customer_id) SELECT :cart_id, customer_visits.id FROM customer_visits WHERE customer_visits.customer_name = :customer_name AND customer_visits.character_class = :character_class"), insert_parameters)
-        
-        # TODO: instead of just identifying by name, try identifying by name, class & level
+
+        sql_to_execute = """
+                            INSERT INTO customer_purchases (cart_id, customer_id) 
+                            SELECT :cart_id, customer_profiles.id 
+                            FROM customer_profiles WHERE customer_name = :customer_name AND character_class = :character_class AND level = :level
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), insert_parameters)
 
     return {
         "cart_id": cart_id
@@ -143,7 +161,13 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     })
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("INSERT INTO cart_items (cart_id, catalog_id, potion_quantity) SELECT :cart_id, catalog_id, :quantity FROM catalog WHERE potion_sku = :item_sku"), insert_parameters)
+        sql_to_execute = """
+                            INSERT INTO cart_items (cart_id, catalog_id, potion_quantity) 
+                            SELECT :cart_id, catalog_id, :quantity 
+                            FROM catalog 
+                            WHERE potion_sku = :item_sku
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), insert_parameters)
 
     return "OK"
 
@@ -156,27 +180,56 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
     print("cart_checkout.payment = ", cart_checkout.payment)
 
+    """
+    
+    """
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT catalog.catalog_id, potion_price, cart_items.potion_quantity FROM cart_items JOIN catalog ON catalog.catalog_id = cart_items.catalog_id WHERE cart_id = :cart_id"), {"cart_id" : cart_id}).mappings().fetchall()
+        sql_to_execute = """
+                            SELECT potion_type, potion_price, cart_items.potion_quantity
+                            FROM cart_items
+                            JOIN catalog ON catalog.catalog_id = cart_items.catalog_id
+                            WHERE cart_id = :cart_id
+                         """
+        result = connection.execute(sqlalchemy.text(sql_to_execute), {"cart_id" : cart_id}).mappings().fetchall()
         print("result = ", result)
 
         
     total_potions_bought = 0
     revenue = 0
-    catalog_update_parameters = []
+    potion_update_parameters = []
 
     for item in result:
         total_potions_bought += item["potion_quantity"]
         revenue += (item["potion_price"] * item["potion_quantity"])
-
-        catalog_update_parameters.append({"catalog_id" : item["catalog_id"],
-                                          "potion_quantity" : item["potion_quantity"],
-                                          "cart_id" : cart_id})
         
-    print("catalog_update_parameters = ", catalog_update_parameters)
+        potion_update_parameters.append(
+            {
+                "transaction_id" : cart_id,
+                "transaction_type" : "POTION_SALE",
+                "potion_type" : item["potion_type"],
+                "potion_change" : -item["potion_quantity"]
+            }
+        )
+        
+    print("potion_update_parameters = ", potion_update_parameters)
+
+    cha_ching_parameters = {
+        "transaction_id" : cart_id,
+        "transaction_type" : "POTION_SALE",
+        "revenue" : revenue
+    }
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("UPDATE catalog SET quantity = catalog.quantity - :potion_quantity FROM cart_items WHERE catalog.catalog_id = :catalog_id AND cart_items.cart_id = :cart_id"), catalog_update_parameters)
-        connection.execute(sqlalchemy.text("UPDATE cha_ching SET gold = gold + :revenue"), {"revenue" : revenue})
+        sql_to_execute = """
+                            INSERT INTO potion_entries (transaction_id, transaction_type, potion_type, potion_change) VALUES
+                            (:transaction_id, :transaction_type, :potion_type, :potion_change)
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), potion_update_parameters)
+        
+        sql_to_execute = """
+                            INSERT INTO cha_ching_entries (transaction_id, transaction_type, cha_change) VALUES 
+                            (:transaction_id, :transaction_type, :revenue)
+                         """
+        connection.execute(sqlalchemy.text(sql_to_execute), cha_ching_parameters)
 
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": revenue}
