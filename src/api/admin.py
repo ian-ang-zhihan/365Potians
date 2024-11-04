@@ -18,11 +18,23 @@ def reset():
     """
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("UPDATE catalog SET quantity = 0"))
-        connection.execute(sqlalchemy.text("UPDATE liquid_inventory SET num_ml = 0"))
-        connection.execute(sqlalchemy.text("UPDATE cha_ching SET gold = 100"))
-        connection.execute(sqlalchemy.text("UPDATE storage_capacity SET potion_capacity = 1, ml_capacity = 1"))
+        """
+        For v4:
+        - Truncate relevant (ledger) tables
+            - Potion entries
+            - Barrel entries
+            - cha_ching entries
+            - capacity entries
+            - Carts
+            - Cart_items
+        - For gold, insert one row with 100 gold, transaction type = "BASE"
+        - For capacity, insert one row with 1 potion_cap & 1 ml_cap, transaction_type = "BASE"
+        """
+
         connection.execute(sqlalchemy.text("TRUNCATE carts CASCADE"))
+        connection.execute(sqlalchemy.text("TRUNCATE potion_entries, barrel_entries, cha_ching_entries, capacity_entries"))
+        connection.execute(sqlalchemy.text("INSERT INTO cha_ching_entries (transaction_id, transaction_type, cha_change) VALUES (0, 'BASE', 100)"))
+        connection.execute(sqlalchemy.text("INSERT INTO capacity_entries (transaction_id, transaction_type, potion_capacity, ml_capacity) VALUES (0, 'BASE', 1, 1)"))
 
     return "OK"
 
