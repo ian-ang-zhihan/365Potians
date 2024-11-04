@@ -17,14 +17,14 @@ def get_inventory():
 
     with db.engine.begin() as connection:
 
-        potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(potion_change) FROM potion_entries")).mappings().fetchone()
+        potion_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(potion_change), 0) FROM potion_entries")).mappings().fetchone()
         # print("potion_inventory = ", potion_inventory)
         # print("potion_inventory[\"sum\"] = ", potion_inventory["sum"])
 
-        liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(liquid_change) FROM barrel_entries")).mappings().fetchone()
+        liquid_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(liquid_change), 0) FROM barrel_entries")).mappings().fetchone()
         # print("liquid_inventory = ", liquid_inventory)
 
-        gold_inventory = connection.execute(sqlalchemy.text("SELECT SUM(cha_change) FROM cha_ching_entries")).mappings().fetchone()
+        gold_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(cha_change), 0) FROM cha_ching_entries")).mappings().fetchone()
         # print("gold_inventory = ", gold_inventory)
 
     return {"number_of_potions": potion_inventory["sum"], "ml_in_barrels": liquid_inventory["sum"], "gold": gold_inventory["sum"]}
@@ -39,13 +39,13 @@ def get_capacity_plan():
 
     with db.engine.begin() as connection:
 
-        potion_inventory = connection.execute(sqlalchemy.text("SELECT SUM(potion_change) FROM potion_entries")).mappings().fetchone()
+        potion_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(potion_change), 0) FROM potion_entries")).mappings().fetchone()
 
-        liquid_inventory = connection.execute(sqlalchemy.text("SELECT SUM(liquid_change) FROM barrel_entries")).mappings().fetchone()
+        liquid_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(liquid_change), 0) FROM barrel_entries")).mappings().fetchone()
 
-        gold_inventory = connection.execute(sqlalchemy.text("SELECT SUM(cha_change) AS gold FROM cha_ching_entries")).mappings().fetchone()
+        gold_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(cha_change), 0) AS gold FROM cha_ching_entries")).mappings().fetchone()
 
-        cur_capacity = connection.execute(sqlalchemy.text("SELECT SUM(potion_capacity) AS potion_capacity, SUM(ml_capacity) AS ml_capacity FROM capacity_entries")).mappings().fetchone()
+        cur_capacity = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(potion_capacity), 1) AS potion_capacity, COALESCE(SUM(ml_capacity), 1) AS ml_capacity FROM capacity_entries")).mappings().fetchone()
 
     potion_capacity_to_add = 0
     ml_capacity_to_add = 0
