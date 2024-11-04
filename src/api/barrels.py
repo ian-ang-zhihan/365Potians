@@ -137,8 +137,8 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
     with db.engine.begin() as connection:
         sql_to_execute = """
-                            INSERT INTO barrel_entries (transaction_id, potion_type, liquid_change) VALUES 
-                            (:order_id, :potion_type, :liquid_change)
+                            INSERT INTO barrel_entries (transaction_id, transaction_type, potion_type, liquid_change) VALUES 
+                            (:transaction_id, :transaction_type, :potion_type, :liquid_change)
                          """
         connection.execute(sqlalchemy.text(sql_to_execute), liquid_update_parameters)
         
