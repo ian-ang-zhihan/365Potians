@@ -44,18 +44,19 @@ def get_capacity_plan():
         liquid_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(liquid_change), 0) AS sum FROM barrel_entries")).mappings().fetchone()
 
         gold_inventory = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(cha_change), 0) AS gold FROM cha_ching_entries")).mappings().fetchone()
+        cur_gold = gold_inventory["gold"]
 
         cur_capacity = connection.execute(sqlalchemy.text("SELECT COALESCE(SUM(potion_capacity), 1) AS potion_capacity, COALESCE(SUM(ml_capacity), 1) AS ml_capacity FROM capacity_entries")).mappings().fetchone()
 
     potion_capacity_to_add = 0
     ml_capacity_to_add = 0
-    if potion_inventory["sum"] >= (20 * cur_capacity["potion_capacity"]) and gold_inventory["gold"] >= 1000:
+    if potion_inventory["sum"] >= (20 * cur_capacity["potion_capacity"]) and cur_gold >= 1000:
         potion_capacity_to_add += 1
-        gold_inventory["gold"] -= 1000
+        cur_gold -= 1000
 
-    if liquid_inventory["sum"] >= (5000 * cur_capacity["ml_capacity"]) and gold_inventory["gold"] >= 1000:
+    if liquid_inventory["sum"] >= (5000 * cur_capacity["ml_capacity"]) and cur_gold >= 1000:
         ml_capacity_to_add += 1
-        gold_inventory["gold"] -= 1000
+        cur_gold -= 1000
 
     return {
         "potion_capacity": potion_capacity_to_add,
