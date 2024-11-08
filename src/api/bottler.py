@@ -137,8 +137,8 @@ def get_bottle_plan():
         print("liquid_inventory = ", liquid_inventory)
 
         sql_to_execute = """
-                            SELECT SUM(potion_capacity) AS potion_capacity, SUM(ml_capacity) AS ml_capacity
-                            FROM storage_capacity
+                            SELECT COALESCE(SUM(potion_capacity), 1) AS potion_capacity, COALESCE(SUM(ml_capacity), 1) AS ml_capacity
+                            FROM capacity_entries
                          """
         cur_capacity = connection.execute(sqlalchemy.text(sql_to_execute)).mappings().fetchone()
 
