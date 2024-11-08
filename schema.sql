@@ -140,6 +140,24 @@ INSERT INTO barrels (color, potion_type) VALUES
 ('BLUE', '{0, 0, 1, 0}'),
 ('DARK', '{0, 0, 0, 1}');
 
+-- FOR barrel_entries
+INSERT INTO barrel_entries (transaction_id, transaction_type, potion_type, liquid_change) VALUES
+(1, 'BASE', '{1, 0, 0, 0}', 0),
+(1, 'BASE', '{0, 1, 0, 0}', 0),
+(1, 'BASE', '{0, 0, 1, 0}', 0),
+(1, 'BASE', '{0, 0, 0, 1}', 0);
+
+-- FOR potion_entries
+INSERT INTO potion_entries (transaction_id, transaction_type, potion_type, potion_change) VALUES
+(1, 'BASE', '{100, 0, 0, 0}', 0),
+(1, 'BASE', '{0, 100, 0, 0}', 0),
+(1, 'BASE', '{0, 0, 100, 0}', 0),
+(1, 'BASE', '{0, 0, 0, 100}', 0),
+(1, 'BASE', '{50, 50, 0, 0}', 0),
+(1, 'BASE', '{50, 0, 50, 0}', 0),
+(1, 'BASE', '{0, 50, 50, 0}', 0),
+(1, 'BASE', '{25, 25, 25, 25}', 0);
+
 -- FOR capacity_entries
 INSERT INTO capacity_entries (transaction_id, transaction_type, potion_capacity, ml_capacity) VALUES (0, 'BASE', 1, 1)
 
