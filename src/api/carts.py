@@ -93,10 +93,7 @@ def search_orders(
     query = query.order_by(desc(sort_col.value) if sort_order.value == "desc" else asc(sort_col.value))
 
     # Pagination setup
-    if search_page:
-        offset = (int(search_page) - 1) * results_per_page
-    else:
-        offset = 0
+    offset = (int(search_page) - 1) * results_per_page if search_page else 0
 
     query = query.limit(results_per_page + 1).offset(offset)
     # print("query = ", query)
@@ -117,7 +114,7 @@ def search_orders(
     else:
         prev = next = ""
 
-    items = results[:results_per_page]
+    items = results[:results_per_page] if len(results) > results_per_page else results
     # print("items = ", items)
     
     results_data = []
@@ -135,7 +132,7 @@ def search_orders(
     print("prev = ", prev)
     print("next = ", next)
     print("results_data = ", results_data)
-    # print("len(results_data) = ", len(results_data))
+    print("len(results_data) = ", len(results_data))
 
     """
     SELECT cart_item_id, catalog.potion_name, customer_profiles.customer_name, cart_items.potion_quantity * catalog.potion_price AS line_item_total, customer_purchases.created_at AS timestamp
