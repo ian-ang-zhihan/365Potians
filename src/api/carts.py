@@ -27,7 +27,7 @@ class search_sort_order(str, Enum):
 def search_orders(
     customer_name: str = "",
     potion_sku: str = "",
-    search_page: str = "",
+    search_page: str = "1",
     sort_col: search_sort_options = search_sort_options.timestamp,
     sort_order: search_sort_order = search_sort_order.desc,
 ):
@@ -57,6 +57,7 @@ def search_orders(
     """
     results_per_page = 5
 
+    # Log input
     print("customer_name = ", customer_name)
     print("potion_sku = ", potion_sku)
     print("search_page = ", search_page)
@@ -107,7 +108,7 @@ def search_orders(
         print(e)
         return {"previous": "", "next": "", "results": []}
 
-    # print("len(results) = ", len(results))
+    print("len(results) = ", len(results))
 
     # Pagination tokens
     if search_page:
@@ -137,9 +138,6 @@ def search_orders(
     # print("len(results_data) = ", len(results_data))
 
     """
-    # Elysia Stormrider
-    # 000R100G000B000D
-
     SELECT cart_item_id, catalog.potion_name, customer_profiles.customer_name, cart_items.potion_quantity * catalog.potion_price AS line_item_total, customer_purchases.created_at AS timestamp
     FROM cart_items
     JOIN catalog ON cart_items.catalog_id = catalog.catalog_id
