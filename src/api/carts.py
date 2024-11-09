@@ -98,7 +98,7 @@ def search_orders(
         offset = 0
 
     query = query.limit(results_per_page + 1).offset(offset)
-    print("query = ", query)
+    # print("query = ", query)
     
     try:
         with db.engine.begin() as connection:
@@ -107,7 +107,7 @@ def search_orders(
         print(e)
         return {"previous": "", "next": "", "results": []}
 
-    print("len(results) = ", len(results))
+    # print("len(results) = ", len(results))
 
     # Pagination tokens
     if search_page:
