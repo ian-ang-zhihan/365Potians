@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
 import sqlalchemy
+from sqlalchemy import Table, desc, asc
 from src import database as db
+# from database import cart_items, catalog, customer_purchases, customer_profiles
 
 router = APIRouter(
     prefix="/carts",
@@ -53,11 +55,105 @@ def search_orders(
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
     """
+    results_per_page = 5
 
-    return {
-        "previous": "",
-        "next": "",
-        "results": [
+    print("customer_name = ", customer_name)
+    print("potion_sku = ", potion_sku)
+    print("search_page = ", search_page)
+    print("sort_col = ", sort_col)
+    print("sort_order = ", sort_order)
+
+    search_items = db.cart_items.join(
+                                db.catalog, db.cart_items.c.catalog_id == db.catalog.c.catalog_id
+                            ).join(
+                                db.customer_purchases, db.customer_purchases.c.cart_id == db.cart_items.c.cart_id
+                            ).join(
+                                db.customer_profiles, db.customer_purchases.c.customer_id == db.customer_profiles.c.id
+                            )
+    
+    # print("search_items.c = ", search_items.c)
+    # print("search_items.c.keys() = ", search_items.c.keys())
+
+    query = sqlalchemy.select(
+                    search_items.c.cart_items_cart_item_id,
+                    search_items.c.catalog_potion_name,
+                    search_items.c.customer_profiles_customer_name,
+                    (search_items.c.cart_items_potion_quantity * search_items.c.catalog_potion_price).label("line_item_total"),
+                    search_items.c.customer_purchases_created_at.label("timestamp")
+                ).select_from(search_items)
+
+    # Apply filters 
+    if customer_name:
+        query = query.where(search_items.c.customer_profiles_customer_name.ilike(f"%{customer_name}%"))
+    if potion_sku:
+        query = query.where(search_items.c.catalog_potion_name.ilike(f"%{potion_sku}%"))
+
+    # Apply sorting
+    query = query.order_by(desc(sort_col.value) if sort_order.value == "desc" else asc(sort_col.value))
+
+    # Pagination setup
+    if search_page:
+        offset = (int(search_page) - 1) * results_per_page
+    else:
+        offset = 0
+
+    query = query.limit(results_per_page + 1).offset(offset)
+    print("query = ", query)
+    
+    try:
+        with db.engine.begin() as connection:
+                results = connection.execute(query).fetchall()
+    except Exception as e:
+        print(e)
+        return {"previous": "", "next": "", "results": []}
+
+    print("len(results) = ", len(results))
+
+    # Pagination tokens
+    if search_page:
+        prev = str(int(search_page) - 1) if int(search_page) > 1 else ""
+        next = str(int(search_page) + 1) if len(results) > results_per_page else ""
+    else:
+        prev = next = ""
+
+    items = results[:results_per_page]
+    # print("items = ", items)
+    
+    results_data = []
+    for item in items:
+        results_data.append(
+            {
+                "line_item_id": item.cart_item_id,
+                "item_sku": item.potion_name,
+                "customer_name": item.customer_name,
+                "line_item_total": item.line_item_total,
+                "timestamp": item.timestamp,
+            }
+        )
+
+    print("prev = ", prev)
+    print("next = ", next)
+    print("results_data = ", results_data)
+    # print("len(results_data) = ", len(results_data))
+
+    """
+    # Elysia Stormrider
+    # 000R100G000B000D
+
+    SELECT cart_item_id, catalog.potion_name, customer_profiles.customer_name, cart_items.potion_quantity * catalog.potion_price AS line_item_total, customer_purchases.created_at AS timestamp
+    FROM cart_items
+    JOIN catalog ON cart_items.catalog_id = catalog.catalog_id
+    JOIN customer_purchases ON customer_purchases.cart_id = cart_items.cart_id
+    JOIN customer_profiles ON customer_purchases.customer_id = customer_profiles.id
+    WHERE 
+        customer_profiles.customer_name = :customer_name
+        AND
+        catalog.potion_name = :potion_sku
+    ORDER BY :sort_col :sort_order
+    OFFSET :search_page
+    LIMIT 5
+
+    [
             {
                 "line_item_id": 1,
                 "item_sku": "1 oblivion potion",
@@ -65,7 +161,13 @@ def search_orders(
                 "line_item_total": 50,
                 "timestamp": "2021-01-01T00:00:00Z",
             }
-        ],
+        ]
+    """
+
+    return {
+        "previous": prev,
+        "next": next,
+        "results": results_data
     }
 
 
