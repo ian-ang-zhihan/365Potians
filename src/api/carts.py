@@ -81,7 +81,7 @@ def search_orders(
                     search_items.c.customer_profiles_customer_name,
                     (search_items.c.cart_items_potion_quantity * search_items.c.catalog_potion_price).label("line_item_total"),
                     search_items.c.customer_purchases_created_at.label("timestamp")
-                ).select_from(search_items)
+                ).distinct(search_items.c.cart_items_cart_item_id).select_from(search_items)
 
     # Apply filters 
     if customer_name:
